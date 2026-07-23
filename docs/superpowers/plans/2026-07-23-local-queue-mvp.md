@@ -34,10 +34,10 @@
 - Create: `src/queue.js`
 - Create: `test/queue.test.js`
 
-- [ ] **Step 1: Tulis tes gagal** untuk format nomor `001`, reset berdasarkan tanggal WIB, snapshot harga, total, panggil ulang tanpa order baru, selesai, batal, dan reset.
-- [ ] **Step 2: Jalankan** `npm test -- test/queue.test.js` dan pastikan gagal karena `src/queue.js` belum tersedia.
-- [ ] **Step 3: Implementasikan fungsi murni** `createInitialState`, `createOrder`, `callOrder`, `completeOrder`, `cancelOrder`, dan `resetQueue` dengan validasi input.
-- [ ] **Step 4: Jalankan kembali** `npm test -- test/queue.test.js` dan pastikan seluruh tes lulus.
+- [x] **Step 1: Tulis tes gagal** untuk format nomor `001`, reset berdasarkan tanggal WIB, snapshot harga, total, panggil ulang tanpa order baru, selesai, batal, dan reset.
+- [x] **Step 2: Jalankan** `npm test -- test/queue.test.js` dan pastikan gagal karena `src/queue.js` belum tersedia.
+- [x] **Step 3: Implementasikan fungsi murni** `createInitialState`, `createOrder`, `callOrder`, `completeOrder`, `cancelOrder`, dan `resetQueue` dengan validasi input.
+- [x] **Step 4: Jalankan kembali** `npm test -- test/queue.test.js` dan pastikan seluruh tes lulus.
 
 ### Task 2: Persistensi state
 
@@ -46,10 +46,10 @@
 - Create: `data/state.example.json`
 - Create: `test/store.test.js`
 
-- [ ] **Step 1: Tulis tes gagal** yang membuktikan state awal dibuat, perubahan tersimpan, dan instance baru membaca nomor aktif yang sama.
-- [ ] **Step 2: Jalankan** `npm test -- test/store.test.js` dan pastikan gagal karena store belum tersedia.
-- [ ] **Step 3: Implementasikan** `JsonStore` dengan antrean penulisan serta pola temporary-file lalu rename.
-- [ ] **Step 4: Jalankan kembali** tes store dan seluruh suite.
+- [x] **Step 1: Tulis tes gagal** yang membuktikan state awal dibuat, perubahan tersimpan, dan instance baru membaca nomor aktif yang sama.
+- [x] **Step 2: Jalankan** `npm test -- test/store.test.js` dan pastikan gagal karena store belum tersedia.
+- [x] **Step 3: Implementasikan** `JsonStore` dengan antrean penulisan serta pola temporary-file lalu rename.
+- [x] **Step 4: Jalankan kembali** tes store dan seluruh suite.
 
 ### Task 3: API dan sinkronisasi display
 
@@ -57,10 +57,10 @@
 - Create: `src/server.js`
 - Create: `test/server.test.js`
 
-- [ ] **Step 1: Tulis tes gagal** untuk `GET /api/state`, pembuatan order, panggil, panggil ulang, selesai, batal, reset, CRUD produk, respons input salah, dan route halaman.
-- [ ] **Step 2: Jalankan** `npm test -- test/server.test.js` dan pastikan gagal karena server belum tersedia.
-- [ ] **Step 3: Implementasikan** server HTTP, parser JSON berbatas ukuran, pemetaan error, dan endpoint SSE `/api/events`.
-- [ ] **Step 4: Jalankan kembali** tes API dan seluruh suite.
+- [x] **Step 1: Tulis tes gagal** untuk `GET /api/state`, pembuatan order, panggil, panggil ulang, selesai, batal, reset, CRUD produk, respons input salah, dan route halaman.
+- [x] **Step 2: Jalankan** `npm test -- test/server.test.js` dan pastikan gagal karena server belum tersedia.
+- [x] **Step 3: Implementasikan** server HTTP, parser JSON berbatas ukuran, pemetaan error, dan endpoint SSE `/api/events`.
+- [x] **Step 4: Jalankan kembali** tes API dan seluruh suite.
 
 ### Task 4: Panel admin sentuh
 
@@ -69,10 +69,10 @@
 - Create: `public/admin.js`
 - Create: `public/styles.css`
 
-- [ ] **Step 1: Tambahkan tes kontrak gagal** yang memeriksa elemen kasir, pesanan, menu, indikator koneksi, konfirmasi reset, serta tombol minimal 44px.
-- [ ] **Step 2: Jalankan** tes kontrak dan pastikan gagal karena aset belum ada.
-- [ ] **Step 3: Implementasikan** tiga tab admin, keranjang, pembayaran Tunai/QRIS, tindakan pesanan, CRUD menu, disabled-state selama request, dan pesan error terlihat.
-- [ ] **Step 4: Jalankan kembali** tes kontrak serta seluruh suite.
+- [x] **Step 1: Tambahkan tes kontrak gagal** yang memeriksa elemen kasir, pesanan, menu, indikator koneksi, konfirmasi reset, serta tombol minimal 44px.
+- [x] **Step 2: Jalankan** tes kontrak dan pastikan gagal karena aset belum ada.
+- [x] **Step 3: Implementasikan** tiga tab admin, keranjang, pembayaran Tunai/QRIS, tindakan pesanan, CRUD menu, disabled-state selama request, dan pesan error terlihat.
+- [x] **Step 4: Jalankan kembali** tes kontrak serta seluruh suite.
 
 ### Task 5: Display 16:9 dan suara
 
@@ -81,10 +81,10 @@
 - Create: `public/display.js`
 - Modify: `public/styles.css`
 
-- [ ] **Step 1: Tambahkan tes kontrak gagal** untuk area antrean 34%, nomor aktif, area promo, status koneksi, tombol aktivasi suara, dan penggunaan SSE.
-- [ ] **Step 2: Jalankan** tes kontrak dan pastikan gagal karena display belum tersedia.
-- [ ] **Step 3: Implementasikan** layout dua kolom, rotasi menu aktif, reconnect SSE, mempertahankan state terakhir, dan text-to-speech Bahasa Indonesia.
-- [ ] **Step 4: Jalankan kembali** tes kontrak dan seluruh suite.
+- [x] **Step 1: Tambahkan tes kontrak gagal** untuk area antrean 34%, nomor aktif, area promo, status koneksi, tombol aktivasi suara, dan penggunaan SSE.
+- [x] **Step 2: Jalankan** tes kontrak dan pastikan gagal karena display belum tersedia.
+- [x] **Step 3: Implementasikan** layout dua kolom, rotasi menu aktif, reconnect SSE, mempertahankan state terakhir, dan text-to-speech Bahasa Indonesia.
+- [x] **Step 4: Jalankan kembali** tes kontrak dan seluruh suite.
 
 ### Task 6: Build, dokumentasi, dan verifikasi dua layar
 
@@ -96,11 +96,11 @@
 - Modify: `docs/WORKLOG.md`
 - Modify: `docs/ERROR_SOLUTIONS.md` hanya jika error terverifikasi ditemukan.
 
-- [ ] **Step 1: Implementasikan build** yang membersihkan `dist`, memvalidasi file wajib, lalu menyalin aset publik.
-- [ ] **Step 2: Dokumentasikan** setup, alamat lokal, alamat jaringan HP, reset data, dan batas demo versus produksi.
-- [ ] **Step 3: Jalankan** `npm test` dan `npm run build`; keduanya harus exit code 0 tanpa warning aplikasi.
+- [x] **Step 1: Implementasikan build** yang membersihkan `dist`, memvalidasi file wajib, lalu menyalin aset publik.
+- [x] **Step 2: Dokumentasikan** setup, alamat lokal, alamat jaringan HP, reset data, dan batas demo versus produksi.
+- [x] **Step 3: Jalankan** `npm test` dan `npm run build`; keduanya harus exit code 0 tanpa warning aplikasi.
 - [ ] **Step 4: Jalankan server** dan uji `/admin` pada viewport 360x800 serta `/display` pada 1920x1080.
-- [ ] **Step 5: Buktikan alur** buat order -> panggil -> display berubah -> refresh tetap menyimpan nomor -> selesai -> reset.
+- [x] **Step 5: Buktikan alur** buat order -> panggil -> display berubah -> refresh tetap menyimpan nomor -> selesai -> reset.
 
 ## Keputusan scope
 

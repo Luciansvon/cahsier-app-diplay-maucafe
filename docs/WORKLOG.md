@@ -29,3 +29,32 @@ Langkah berikutnya:
 2. Buat halaman `/admin` dan `/display`.
 3. Uji sinkronisasi HP ke laptop melalui jaringan lokal.
 4. Uji layout display 16:9.
+
+## Checkpoint - 2026-07-23
+
+Prototype lokal sudah mencakup:
+
+- kasir dengan keranjang dan pembayaran Tunai/QRIS manual;
+- nomor antrean harian tiga digit;
+- daftar pesanan Menunggu, Siap, Selesai, dan Batal;
+- panggil ulang dan reset dengan konfirmasi;
+- tambah, edit, aktifkan, dan nonaktifkan menu;
+- sinkronisasi display melalui Server-Sent Events;
+- text-to-speech setelah suara diaktifkan pengguna;
+- penyimpanan JSON yang bertahan setelah refresh/restart;
+- layout admin 360x800 dan display dua kolom 16:9.
+
+Pekerjaan verifikasi tersisa:
+
+1. Uji dari HP nyata melalui jaringan lokal sebelum presentasi client.
+2. Uji display fisik 1920x1080; browser QA saat ini membatasi render ke 1280x720 dengan rasio 16:9 yang sama.
+
+Verifikasi yang sudah dilakukan:
+
+- 17 tes otomatis lulus;
+- build aset lulus;
+- admin 360x800 tidak memiliki overflow horizontal;
+- display 1280x720 menunjukkan pembagian antrean tepat 34 persen;
+- alur buat pesanan `001`, panggil, tampil realtime, dan refresh persisten lulus;
+- tidak ada error console pada admin atau display;
+- API dapat diakses melalui alamat jaringan laptop dengan HTTP 200.

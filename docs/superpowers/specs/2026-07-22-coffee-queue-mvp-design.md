@@ -2,13 +2,13 @@
 
 ## Tujuan
 
-MVP ini menggabungkan kasir sederhana, pengelolaan menu, antrean pesanan, dan layar panggilan. Di outlet, satu tablet dipakai pegawai dan satu Smart TV dipakai pelanggan. Aplikasi diterbitkan melalui Codex Sites dan membutuhkan koneksi internet.
+MVP ini menggabungkan kasir sederhana, pengelolaan menu, antrean pesanan, dan layar panggilan. Tahap pertama berupa demo lokal melalui laptop dan HP pada jaringan yang sama. Setelah demo disetujui, kode dapat dipindahkan ke hosting untuk penggunaan tablet dan Smart TV di outlet.
 
 ## Perangkat dan akses
 
-Tablet membuka halaman admin melalui URL publik yang dilindungi PIN. Smart TV membuka halaman display menggunakan kode outlet. Tidak ada laptop atau mini PC di outlet.
+Pada demo, laptop menjalankan server serta display. HP/tablet membuka halaman admin memakai alamat IP lokal laptop. Demo tidak memerlukan internet atau hosting.
 
-Laptop pengembang hanya dipakai untuk membuat dan menguji aplikasi. Demo awal dapat dijalankan dari laptop dan HP sebelum versi Codex Sites diterbitkan.
+Pada produksi, tablet dan Smart TV membuka URL hosted. Hosting, PIN admin, database hosted, dan kode outlet dikerjakan sebagai tahap terpisah setelah demo diterima.
 
 ## Halaman
 
@@ -57,7 +57,7 @@ Pilih menu
 
 ## Penyimpanan
 
-Codex Sites menyediakan database persisten. Model data minimum:
+Demo menyimpan state ke file JSON pada laptop. Model data logis minimum:
 
 * `products`: id, name, category, price, active, created_at, updated_at.
 * `orders`: id, queue_number, business_date, payment_method, total, status, created_at, updated_at.
@@ -69,7 +69,7 @@ Nomor antrean dibuat dalam transaksi database berdasarkan `business_date`. Dua p
 
 ## Akses admin
 
-PIN admin disimpan sebagai nilai rahasia di environment hosting. PIN tidak ditulis di source code atau database. Login yang berhasil membuat session cookie berumur terbatas. Route display tidak meminta PIN agar Smart TV dapat kembali membuka layar setelah restart.
+Demo lokal tidak memakai login. Pada tahap produksi, PIN admin disimpan sebagai nilai rahasia hosting, tidak ditulis di source code, dan menghasilkan session cookie berumur terbatas. Route display tidak meminta PIN agar Smart TV dapat kembali membuka layar setelah restart.
 
 ## Kondisi gagal
 
@@ -96,4 +96,4 @@ Pengujian manual memakai ukuran 360 x 800 untuk tablet/HP dan 1920 x 1080 untuk 
 
 ## Kriteria selesai
 
-MVP selesai ketika pegawai dapat mengelola menu, membuat transaksi Tunai atau QRIS, memperoleh nomor harian, memanggil pesanan, dan menyelesaikannya dari satu tablet. Smart TV harus memperbarui nomor tanpa refresh manual dan mencoba mengucapkan nomor panggilan. Build, test otomatis, dan pengujian alur dua browser harus lulus sebelum publikasi.
+Demo MVP selesai ketika pegawai dapat mengelola menu, membuat transaksi Tunai atau QRIS, memperoleh nomor harian, memanggil pesanan, dan menyelesaikannya dari HP/tablet. Display harus memperbarui nomor tanpa refresh manual dan mencoba mengucapkan nomor panggilan. Build, test otomatis, dan pengujian alur dua browser harus lulus. Publikasi memerlukan persetujuan terpisah.

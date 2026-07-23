@@ -2,7 +2,7 @@
 
 ## Status
 
-Dokumen ini mencatat batas dan rancangan awal. Implementasi aplikasi belum dibuat.
+Prototype lokal sudah diimplementasikan dengan Node.js tanpa dependency eksternal.
 
 ## Gambaran sistem
 
@@ -17,6 +17,8 @@ Laptop server lokal
       |
       +-- /admin
       +-- /display --> browser laptop atau Smart TV
+      +-- REST API
+      +-- SSE realtime
 ```
 
 ## Halaman aplikasi
@@ -37,23 +39,24 @@ Layar 16:9 untuk pelanggan. Nomor aktif harus lebih menonjol daripada iklan atau
 
 ## State antrean
 
-State minimum:
+State tersimpan di `data/state.json`:
 
 - nomor aktif;
 - status pesanan;
 - waktu perubahan terakhir;
-- daftar nomor terakhir;
-- status koneksi display.
+- daftar produk dan snapshot item transaksi;
+- daftar pesanan beserta statusnya;
+- revisi state dan event panggilan terakhir.
 
-Refresh browser tidak boleh menghilangkan nomor aktif. Bentuk penyimpanan ditentukan saat implementasi setelah kebutuhan demo diuji.
+Penulisan memakai temporary file lalu rename agar file utama tidak tersimpan setengah. Refresh browser dan restart server membaca kembali state terakhir.
 
 ## Sinkronisasi demo
 
-HP dan display membaca state dari server pada laptop. Perubahan admin harus muncul tanpa refresh manual. Implementasi harus tetap sederhana dan tidak bergantung pada layanan cloud untuk demo lokal.
+HP dan display membaca state dari server pada laptop. Admin mengubah state melalui REST API. Server mengirim snapshot terbaru melalui Server-Sent Events sehingga display berubah tanpa refresh manual. Saat SSE terputus, browser mencoba terhubung kembali dan UI menampilkan status koneksi.
 
 ## Media promo
 
-Versi pertama memakai aset lokal yang diberikan client. Nomor antrean harus tetap terbaca saat gambar atau video berjalan. Jangan memasukkan logo atau materi merek tanpa izin penggunaan.
+Versi pertama merotasi kartu dari daftar menu aktif. Nomor antrean selalu menempati 34 persen layar. Aset gambar/video dan logo hanya ditambahkan setelah client memberikan file serta izin penggunaan.
 
 ## Jalur produksi
 

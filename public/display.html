@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Layar Antrean Kedai Kopi</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="display-page">
+  <main class="display-shell">
+    <section class="queue-panel">
+      <div class="display-brand"><span class="brand-mark">K</span><span>KEDAI KOPI</span></div>
+      <div class="queue-center">
+        <p class="queue-label">PESANAN SIAP</p>
+        <strong id="active-number" class="active-number">---</strong>
+        <p id="pickup-message" class="pickup-message">Menunggu panggilan berikutnya</p>
+      </div>
+      <div class="display-controls">
+        <span id="display-connection" class="connection offline" role="status">Menghubungkan...</span>
+        <button id="enable-voice" class="voice-button">Aktifkan suara</button>
+      </div>
+    </section>
+    <section class="promo-panel">
+      <div class="promo-topline"><span>MENU PILIHAN</span><span id="promo-counter">01 / 01</span></div>
+      <div id="promo-content" class="promo-content">
+        <p class="promo-kicker">HARI INI</p>
+        <h1>Racikan hangat<br>untuk harimu.</h1>
+        <p>Menu aktif akan tampil otomatis di layar ini.</p>
+      </div>
+      <div class="promo-decoration" aria-hidden="true"><span></span><span></span><span></span></div>
+    </section>
+  </main>
+  <script type="module" src="/display.js"></script>
+</body>
+</html>
