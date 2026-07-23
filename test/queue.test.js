@@ -73,14 +73,19 @@ test('orders can be completed or cancelled', () => {
   assert.equal(state.orders[1].status, 'cancelled');
 });
 
-test('reset clears orders and active call', () => {
+test('reset cancels active orders and preserves closed sales history', () => {
   let state = stateWithMenu();
-  const created = createOrder(state, { items: [{ productId: 'kopi-susu', quantity: 1 }], paymentMethod: 'cash' }, NOW);
-  state = callOrder(created.state, created.order.id, NOW).state;
+  const first = createOrder(state, { items: [{ productId: 'kopi-susu', quantity: 1 }], paymentMethod: 'cash' }, NOW);
+  const second = createOrder(first.state, { items: [{ productId: 'kopi-susu', quantity: 1 }], paymentMethod: 'QRIS' }, NOW);
+  state = completeOrder(second.state, first.order.id, NOW).state;
+  state = callOrder(state, second.order.id, NOW).state;
 
-  state = resetQueue(state, NOW);
+  state = resetQueue(state, '2026-07-23T02:05:00.000Z');
 
-  assert.equal(state.orders.length, 0);
+  assert.equal(state.orders.length, 2);
+  assert.equal(state.orders[0].status, 'completed');
+  assert.equal(state.orders[1].status, 'cancelled');
+  assert.equal(state.orders[1].updatedAt, '2026-07-23T02:05:00.000Z');
   assert.equal(state.activeCall, null);
   assert.equal(state.nextQueueNumber, 1);
 });

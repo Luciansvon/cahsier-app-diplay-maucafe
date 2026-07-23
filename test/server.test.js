@@ -84,7 +84,9 @@ test('supports product management, cancellation, and queue reset', async (t) => 
   assert.equal(cancelled.payload.order.status, 'cancelled');
 
   const reset = await jsonRequest(`${baseUrl}/api/reset`, 'POST', {});
-  assert.equal(reset.payload.state.orders.length, 0);
+  assert.equal(reset.payload.state.orders.length, 1);
+  assert.equal(reset.payload.state.orders[0].status, 'cancelled');
+  assert.equal(reset.payload.state.activeCall, null);
   assert.equal(reset.payload.state.nextQueueNumber, 1);
 });
 

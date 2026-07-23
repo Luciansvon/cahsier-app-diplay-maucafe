@@ -128,7 +128,12 @@ export function resetQueue(currentState, now = new Date().toISOString()) {
   const state = clone(currentState);
   state.businessDate = jakartaDate(now);
   state.nextQueueNumber = 1;
-  state.orders = [];
+  for (const order of state.orders) {
+    if (['waiting', 'ready'].includes(order.status)) {
+      order.status = 'cancelled';
+      order.updatedAt = now;
+    }
+  }
   state.activeCall = null;
   return changed(state);
 }
