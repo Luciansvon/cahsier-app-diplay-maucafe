@@ -76,3 +76,10 @@ Verifikasi yang sudah dilakukan:
 - permintaan viewport 360x800 menghasilkan area CSS 288x640 karena skala Windows 125 persen; fallback di bawah 320 px tetap satu kolom tanpa overflow horizontal;
 - uji browser menunjukkan omzet berubah dari Rp51.000 menjadi Rp36.000 setelah reset, satu transaksi selesai tetap dihitung, dan dua transaksi batal tetap terlihat;
 - tidak ada error atau warning console pada pemeriksaan akhir.
+
+## Sinkronisasi cadangan display - 2026-07-23
+
+- bukti pengguna menunjukkan admin `001` sementara display masih menampilkan `002` meski keduanya berstatus Terhubung;
+- state server pada saat pemeriksaan sudah menunjuk nomor aktif `001`;
+- display tetap memakai Server-Sent Events dan mengambil state tanpa cache setiap dua detik;
+- sinkronisasi cadangan mencegah nomor tertahan saat stream tunnel diam tanpa memicu error koneksi.

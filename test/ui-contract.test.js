@@ -31,6 +31,8 @@ test('display keeps a 34 percent queue panel, promo area, voice opt-in, and live
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   assert.match(script, /EventSource/);
+  assert.match(script, /async function syncState/);
+  assert.match(script, /setInterval\(syncState,\s*2000\)/);
   assert.match(script, /speechSynthesis/);
   assert.match(script, /localStorage/);
   assert.match(css, /\.queue-panel[\s\S]*flex:\s*0 0 34%/);

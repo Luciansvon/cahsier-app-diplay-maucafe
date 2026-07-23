@@ -78,7 +78,7 @@ if (voiceEnabled) {
 }
 if (state) applyState(state);
 
-async function connect() {
+async function syncState() {
   try {
     const response = await fetch('/api/state', { cache: 'no-store' });
     if (!response.ok) throw new Error('Server tidak merespons');
@@ -87,6 +87,10 @@ async function connect() {
   } catch {
     setConnection(false);
   }
+}
+
+async function connect() {
+  await syncState();
   const events = new EventSource('/api/events');
   events.onmessage = (event) => { applyState(JSON.parse(event.data)); setConnection(true); };
   events.onerror = () => setConnection(false);
@@ -96,5 +100,6 @@ window.setInterval(() => {
   promoIndex += 1;
   renderPromo();
 }, 8000);
+window.setInterval(syncState, 2000);
 
 connect();

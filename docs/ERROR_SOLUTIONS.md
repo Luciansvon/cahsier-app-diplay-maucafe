@@ -47,3 +47,17 @@ Daftarkan `/sales.js` pada pemetaan aset statis server dan tambahkan tes endpoin
 
 Verifikasi:
 Tes server lulus, admin berstatus `Terhubung`, tab Penjualan dapat dibuka, dan console browser tidak mencatat error.
+
+## ERR-003 - Nomor display tertinggal meski berstatus terhubung
+
+Kondisi:
+Admin sudah memanggil nomor `001`, tetapi display masih menampilkan nomor `002`. Kedua halaman menampilkan status `Terhubung`.
+
+Penyebab:
+Display hanya mengandalkan Server-Sent Events setelah pengambilan state pertama. Tunnel demo dapat menahan stream tanpa menutup koneksi, sehingga handler error tidak berjalan dan indikator tetap menunjukkan koneksi terakhir yang berhasil.
+
+Solusi:
+Pertahankan Server-Sent Events untuk pembaruan cepat dan tambahkan pengambilan `/api/state` setiap dua detik sebagai sinkronisasi cadangan.
+
+Verifikasi:
+Tes kontrak UI membuktikan polling cadangan aktif bersama Server-Sent Events. Pengambilan state memakai `no-store`, sehingga nomor display kembali mengikuti state server paling lambat dua detik setelah stream tertahan.
