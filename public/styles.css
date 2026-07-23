@@ -147,3 +147,7 @@ main { max-width: 1100px; margin: auto; }
   .menu-actions { width: 100%; }
   .menu-actions button { flex: 1; }
 }
+
+@media (max-width: 320px) {
+  .sales-summary { grid-template-columns: 1fr; }
+}

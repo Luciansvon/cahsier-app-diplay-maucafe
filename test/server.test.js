@@ -13,6 +13,7 @@ async function fixture(t) {
   await mkdir(publicDir);
   await writeFile(join(publicDir, 'admin.html'), '<h1>Admin</h1>');
   await writeFile(join(publicDir, 'display.html'), '<h1>Display</h1>');
+  await writeFile(join(publicDir, 'sales.js'), 'export const sales = true;');
   const initialState = createInitialState({
     products: [{ id: 'latte', name: 'Latte', category: 'Kopi', price: 20000, active: true }],
   });
@@ -37,10 +38,13 @@ async function jsonRequest(url, method = 'GET', body) {
   return { response, payload };
 }
 
-test('serves admin, display, and current state', async (t) => {
+test('serves admin, display, sales module, and current state', async (t) => {
   const { baseUrl } = await fixture(t);
   assert.match(await (await fetch(`${baseUrl}/admin`)).text(), /Admin/);
   assert.match(await (await fetch(`${baseUrl}/display`)).text(), /Display/);
+  const sales = await fetch(`${baseUrl}/sales.js`);
+  assert.equal(sales.status, 200);
+  assert.match(await sales.text(), /sales/);
   const { response, payload } = await jsonRequest(`${baseUrl}/api/state`);
   assert.equal(response.status, 200);
   assert.equal(payload.products[0].name, 'Latte');

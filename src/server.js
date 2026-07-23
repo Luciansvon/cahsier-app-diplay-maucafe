@@ -103,6 +103,7 @@ export async function createQueueServer({
         ['/admin', 'admin.html'],
         ['/display', 'display.html'],
         ['/admin.js', 'admin.js'],
+        ['/sales.js', 'sales.js'],
         ['/display.js', 'display.js'],
         ['/styles.css', 'styles.css'],
       ]);

@@ -22,6 +22,7 @@ test('admin exposes cashier, orders, sales, menu, reset confirmation, and connec
   assert.match(css, /\.sales-summary/);
   assert.match(css, /min-height:\s*48px/);
   assert.match(css, /@media\s*\(max-width:\s*600px\)/);
+  assert.match(css, /@media\s*\(max-width:\s*320px\)[\s\S]*\.sales-summary\s*\{\s*grid-template-columns:\s*1fr/);
 });
 
 test('display keeps a 34 percent queue panel, promo area, voice opt-in, and live connection', async () => {
