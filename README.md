@@ -25,10 +25,11 @@ Untuk membuka admin dari HP, pastikan HP dan laptop memakai Wi-Fi/hotspot yang s
 4. Buka tab Pesanan dan tekan **Panggil**.
 5. Nomor tampil serta dibacakan pada display tanpa refresh.
 6. Tekan **Selesai** setelah pesanan diambil.
+7. Buka tab **Penjualan** untuk melihat omzet, metode bayar, produk terjual, dan riwayat transaksi hari ini.
 
 ## Data dan reset
 
-State aktif tersimpan di `data/state.json` dan tetap ada setelah refresh atau restart. Tombol **Reset** pada tab Pesanan menghapus antrean aktif dan mengembalikan nomor berikutnya ke `001`. Menu tidak ikut terhapus.
+State aktif tersimpan di `data/state.json` dan tetap ada setelah refresh atau restart. Tombol **Reset** pada tab Pesanan membatalkan pesanan yang masih aktif, mengosongkan panggilan, dan mengembalikan nomor berikutnya ke `001`. Riwayat transaksi tetap tersimpan. Pesanan batal terlihat di tab Penjualan tetapi tidak dihitung sebagai omzet.
 
 Untuk mengembalikan seluruh data contoh, hentikan server, hapus `data/state.json`, lalu jalankan `npm start` kembali.
 

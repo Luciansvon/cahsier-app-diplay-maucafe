@@ -64,3 +64,15 @@ Verifikasi yang sudah dilakukan:
 - nomor antrean kini mengikuti batas lebar dan tinggi layar, bukan hanya lebar viewport;
 - nomor `001` tidak lagi melewati panel merah pada pemeriksaan browser;
 - tes regresi UI ditambahkan untuk menjaga aturan ukuran tersebut.
+
+## Catatan penjualan admin - 2026-07-23
+
+- tab Penjualan menampilkan omzet, jumlah transaksi, Tunai, QRIS, produk terjual, dan rincian transaksi;
+- transaksi dihitung saat tombol Sudah Dibayar ditekan;
+- transaksi batal tetap terlihat tetapi dikeluarkan dari ringkasan;
+- reset antrean membatalkan pesanan aktif tanpa menghapus riwayat selesai;
+- pembaruan transaksi dan reset teruji melalui SSE tanpa refresh halaman;
+- 19 tes otomatis dan build aset lulus;
+- permintaan viewport 360x800 menghasilkan area CSS 288x640 karena skala Windows 125 persen; fallback di bawah 320 px tetap satu kolom tanpa overflow horizontal;
+- uji browser menunjukkan omzet berubah dari Rp51.000 menjadi Rp36.000 setelah reset, satu transaksi selesai tetap dihitung, dan dua transaksi batal tetap terlihat;
+- tidak ada error atau warning console pada pemeriksaan akhir.

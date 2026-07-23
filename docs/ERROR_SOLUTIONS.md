@@ -33,3 +33,17 @@ Ukuran nomor dibatasi oleh nilai terkecil antara lebar dan tinggi viewport denga
 
 Verifikasi:
 Tes kontrak UI lulus dan pemeriksaan browser memastikan nomor `001` tetap berada di dalam area panel pada viewport yang tersedia.
+
+## ERR-002 - Tab Penjualan tidak berjalan
+
+Kondisi:
+Markup tab Penjualan tampil, tetapi status admin berhenti di `Menghubungkan...` dan tombol tab tidak mengubah panel.
+
+Penyebab:
+`admin.js` mengimpor `/sales.js`, tetapi file tersebut belum didaftarkan pada daftar aset statis di server. Permintaan `/sales.js` mendapat HTTP 404 sehingga modul admin tidak dijalankan.
+
+Solusi:
+Daftarkan `/sales.js` pada pemetaan aset statis server dan tambahkan tes endpoint agar file selalu mendapat HTTP 200.
+
+Verifikasi:
+Tes server lulus, admin berstatus `Terhubung`, tab Penjualan dapat dibuka, dan console browser tidak mencatat error.

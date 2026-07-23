@@ -31,7 +31,10 @@ Panel sentuh untuk kasir. Fungsi minimum:
 - menurunkan nomor untuk koreksi;
 - memanggil ulang;
 - menandai pesanan selesai;
-- mereset antrean dengan konfirmasi.
+- mereset antrean dengan konfirmasi;
+- merangkum omzet harian dari pesanan yang sudah dibayar;
+- memisahkan pembayaran Tunai dan QRIS;
+- mempertahankan transaksi selesai dan batal saat antrean direset.
 
 ### `/display`
 
