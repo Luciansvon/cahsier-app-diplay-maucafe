@@ -27,4 +27,6 @@ test('display keeps a 34 percent queue panel, promo area, voice opt-in, and live
   assert.match(script, /localStorage/);
   assert.match(css, /\.queue-panel[\s\S]*flex:\s*0 0 34%/);
   assert.match(css, /aspect-ratio:\s*16\s*\/\s*9/);
+  assert.match(css, /\.active-number[\s\S]*font-size:\s*clamp\(88px,\s*min\(15vw,\s*27vh\),\s*260px\)/);
+  assert.match(css, /\.active-number[\s\S]*max-width:\s*100%/);
 });

@@ -58,3 +58,9 @@ Verifikasi yang sudah dilakukan:
 - alur buat pesanan `001`, panggil, tampil realtime, dan refresh persisten lulus;
 - tidak ada error console pada admin atau display;
 - API dapat diakses melalui alamat jaringan laptop dengan HTTP 200.
+
+## Perbaikan proporsi display - 2026-07-23
+
+- nomor antrean kini mengikuti batas lebar dan tinggi layar, bukan hanya lebar viewport;
+- nomor `001` tidak lagi melewati panel merah pada pemeriksaan browser;
+- tes regresi UI ditambahkan untuk menjaga aturan ukuran tersebut.

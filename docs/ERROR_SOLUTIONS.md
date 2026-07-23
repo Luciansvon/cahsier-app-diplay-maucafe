@@ -20,4 +20,16 @@ Verifikasi:
 Pemeriksaan yang membuktikan error selesai.
 ```
 
-Belum ada error terverifikasi.
+## ERR-001 - Nomor antrean melewati panel display
+
+Kondisi:
+Nomor tiga digit terpotong di sisi kanan panel antrean pada layar lebar dengan tinggi terbatas.
+
+Penyebab:
+Ukuran nomor memakai `18vw`, sehingga mengikuti lebar seluruh viewport meskipun panel antrean hanya selebar 34 persen.
+
+Solusi:
+Ukuran nomor dibatasi oleh nilai terkecil antara lebar dan tinggi viewport dengan batas maksimum 260 px.
+
+Verifikasi:
+Tes kontrak UI lulus dan pemeriksaan browser memastikan nomor `001` tetap berada di dalam area panel pada viewport yang tersedia.
