@@ -29,7 +29,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .connection.offline { color: #b23b32; }
 
 .error-banner { max-width: 1100px; margin: 0 auto 14px; border: 1px solid #e5a59e; border-radius: 12px; padding: 12px 14px; color: #81251d; background: #fff0ed; font-weight: 700; }
-.tab-bar { position: sticky; top: 8px; z-index: 10; max-width: 1100px; margin: 0 auto 22px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 5px; border: 1px solid var(--line); border-radius: 15px; background: rgba(255, 250, 241, .94); box-shadow: var(--shadow); backdrop-filter: blur(12px); }
+.tab-bar { position: sticky; top: 8px; z-index: 10; max-width: 1100px; margin: 0 auto 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 5px; border: 1px solid var(--line); border-radius: 15px; background: rgba(255, 250, 241, .94); box-shadow: var(--shadow); backdrop-filter: blur(12px); }
 .tab { border: 0; border-radius: 10px; color: var(--muted); background: transparent; font-weight: 800; }
 .tab.active { color: white; background: var(--red); }
 .count { display: inline-grid; min-width: 21px; height: 21px; margin-left: 4px; place-items: center; border-radius: 50%; color: var(--red); background: white; font-size: 11px; }
@@ -70,6 +70,28 @@ main { max-width: 1100px; margin: auto; }
 .ready .status-pill { color: var(--green); background: #dff1e8; }
 .order-summary { color: var(--muted); }
 .order-actions { display: grid; grid-template-columns: 1.4fr 1fr .7fr; gap: 8px; }
+
+.sales-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+.sales-card { min-width: 0; border: 1px solid var(--line); border-radius: 16px; padding: 15px; background: var(--cream); box-shadow: 0 5px 16px rgba(53, 31, 20, .06); }
+.sales-card span, .sales-card strong { display: block; }
+.sales-card span { margin-bottom: 8px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.sales-card strong { overflow-wrap: anywhere; font-family: Georgia, serif; font-size: clamp(20px, 3vw, 30px); }
+.sales-card.featured { color: white; background: var(--red); }
+.sales-card.featured span { color: rgba(255, 255, 255, .78); }
+.sales-columns { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(0, 1.4fr); gap: 16px; }
+.sales-section { border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: var(--cream); }
+.sales-section h3 { margin: 0 0 12px; font-family: Georgia, serif; font-size: 22px; }
+.sold-product-row, .sale-meta, .sale-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sold-product-row { padding: 11px 0; border-bottom: 1px solid var(--line); }
+.sold-product-row:last-child { border-bottom: 0; }
+.sold-product-row small, .sale-top small { display: block; margin-top: 3px; color: var(--muted); }
+.sold-quantity { white-space: nowrap; color: var(--red); }
+.sales-list { display: grid; gap: 10px; }
+.sale-row { border: 1px solid var(--line); border-radius: 14px; padding: 13px; background: white; }
+.sale-row.cancelled { opacity: .58; }
+.sale-number { font-family: Georgia, serif; font-size: 25px; }
+.sale-items { margin: 10px 0; color: var(--muted); }
+.sale-meta { padding-top: 10px; border-top: 1px solid var(--line); }
 
 .product-form { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; margin-bottom: 20px; border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: var(--cream); }
 .product-form label { color: var(--muted); font-size: 12px; font-weight: 800; }
@@ -112,10 +134,13 @@ main { max-width: 1100px; margin: auto; }
   .admin-page { padding: 14px 12px 40px; }
   .admin-header { align-items: flex-start; }
   .connection { font-size: 10px; }
+  .tab { padding-inline: 4px; font-size: 12px; }
   .product-grid { grid-template-columns: 1fr 1fr; }
   .product-card { min-height: 116px; }
   .order-actions { grid-template-columns: 1fr 1fr; }
   .order-actions .danger { grid-column: 1 / -1; }
+  .sales-summary { grid-template-columns: 1fr 1fr; }
+  .sales-columns { grid-template-columns: 1fr; }
   .product-form { grid-template-columns: 1fr; }
   .product-form label, .form-actions { grid-column: 1; }
   .menu-row { align-items: flex-start; flex-direction: column; }

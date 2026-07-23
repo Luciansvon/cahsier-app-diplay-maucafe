@@ -1,3 +1,5 @@
+import { summarizeSales } from '/sales.js';
+
 let state = { products: [], orders: [], activeCall: null };
 const cart = new Map();
 let paymentMethod = 'cash';
@@ -66,6 +68,7 @@ function applyState(nextState) {
   state = nextState;
   renderProducts();
   renderOrders();
+  renderSales();
   renderMenu();
 }
 
@@ -150,6 +153,54 @@ function renderOrders() {
   }
 }
 
+const saleStatus = {
+  waiting: 'Dibayar',
+  ready: 'Siap',
+  completed: 'Selesai',
+  cancelled: 'Batal',
+};
+
+function transactionTime(value) {
+  return new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(new Date(value));
+}
+
+function renderSales() {
+  const summary = summarizeSales(state.orders, state.businessDate);
+  $('#sales-revenue').textContent = rupiah(summary.revenue);
+  $('#sales-count').textContent = String(summary.transactionCount);
+  $('#sales-cash').textContent = rupiah(summary.paymentTotals.cash);
+  $('#sales-qris').textContent = rupiah(summary.paymentTotals.QRIS);
+
+  const products = $('#sold-products');
+  products.replaceChildren();
+  if (!summary.products.length) products.append(element('p', 'empty-state', 'Belum ada produk terjual.'));
+  for (const product of summary.products) {
+    const row = element('div', 'sold-product-row');
+    const info = element('div');
+    info.append(element('strong', '', product.productName), element('small', '', rupiah(product.revenue)));
+    row.append(info, element('strong', 'sold-quantity', `${product.quantity} item`));
+    products.append(row);
+  }
+
+  const list = $('#sales-list');
+  list.replaceChildren();
+  if (!summary.transactions.length) list.append(element('p', 'empty-state large', 'Belum ada transaksi hari ini.'));
+  for (const order of summary.transactions) {
+    const row = element('article', `sale-row ${order.status}`);
+    const top = element('div', 'sale-top');
+    const identity = element('div');
+    identity.append(element('strong', 'sale-number', order.queueNumber), element('small', '', transactionTime(order.createdAt)));
+    top.append(identity, element('span', 'status-pill', saleStatus[order.status]));
+    const items = element('p', 'sale-items', order.items.map((item) => `${item.quantity}× ${item.productName}`).join(', '));
+    const meta = element('div', 'sale-meta');
+    meta.append(element('span', '', order.paymentMethod === 'cash' ? 'Tunai' : 'QRIS'), element('strong', '', rupiah(order.total)));
+    row.append(top, items, meta);
+    list.append(row);
+  }
+}
+
 function resetProductForm() {
   $('#product-form').reset();
   $('#product-id').value = '';
@@ -210,7 +261,7 @@ $('#checkout').addEventListener('click', async () => {
 });
 
 $('#reset-queue').addEventListener('click', () => {
-  if (window.confirm('Reset seluruh antrean hari ini? Tindakan ini tidak dapat dibatalkan.')) {
+  if (window.confirm('Reset antrean? Semua pesanan aktif akan dibatalkan, tetapi riwayat penjualan tetap disimpan.')) {
     api('/api/reset', { method: 'POST', body: '{}' }).then(() => toast('Antrean berhasil direset')).catch(() => {});
   }
 });

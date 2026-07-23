@@ -20,6 +20,7 @@
   <nav class="tab-bar" aria-label="Menu admin">
     <button class="tab active" data-tab="cashier-panel">Kasir</button>
     <button class="tab" data-tab="orders-panel">Pesanan <span id="order-count" class="count">0</span></button>
+    <button class="tab" data-tab="sales-panel">Penjualan</button>
     <button class="tab" data-tab="menu-panel">Menu</button>
   </nav>
 
@@ -46,6 +47,28 @@
         <button id="reset-queue" class="danger ghost action-button">Reset</button>
       </div>
       <div id="orders-list" class="orders-list"></div>
+    </section>
+
+    <section id="sales-panel" class="panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">HARI INI</p><h2>Catatan penjualan</h2></div>
+      </div>
+      <div class="sales-summary">
+        <article class="sales-card featured"><span>Omzet</span><strong id="sales-revenue">Rp0</strong></article>
+        <article class="sales-card"><span>Transaksi</span><strong id="sales-count">0</strong></article>
+        <article class="sales-card"><span>Tunai</span><strong id="sales-cash">Rp0</strong></article>
+        <article class="sales-card"><span>QRIS</span><strong id="sales-qris">Rp0</strong></article>
+      </div>
+      <div class="sales-columns">
+        <section class="sales-section">
+          <h3>Produk terjual</h3>
+          <div id="sold-products" class="sold-products"></div>
+        </section>
+        <section class="sales-section">
+          <h3>Transaksi</h3>
+          <div id="sales-list" class="sales-list"></div>
+        </section>
+      </div>
     </section>
 
     <section id="menu-panel" class="panel">

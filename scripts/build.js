@@ -8,6 +8,7 @@ const requiredJavaScript = [
   'src/queue.js',
   'src/store.js',
   'src/server.js',
+  'public/sales.js',
   'public/admin.js',
   'public/display.js',
 ];

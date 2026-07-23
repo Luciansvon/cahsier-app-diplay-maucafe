@@ -4,15 +4,22 @@ import { readFile } from 'node:fs/promises';
 
 const read = (file) => readFile(new URL(`../public/${file}`, import.meta.url), 'utf8');
 
-test('admin exposes cashier, orders, menu, reset confirmation, and connection feedback', async () => {
+test('admin exposes cashier, orders, sales, menu, reset confirmation, and connection feedback', async () => {
   const [html, script, css] = await Promise.all([read('admin.html'), read('admin.js'), read('styles.css')]);
-  for (const id of ['connection-status', 'cashier-panel', 'orders-panel', 'menu-panel', 'reset-queue', 'product-form']) {
+  for (const id of [
+    'connection-status', 'cashier-panel', 'orders-panel', 'sales-panel', 'menu-panel',
+    'reset-queue', 'product-form', 'sales-revenue', 'sales-count', 'sales-cash',
+    'sales-qris', 'sold-products', 'sales-list',
+  ]) {
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
-  assert.match(script, /window\.confirm/);
+  assert.match(script, /summarizeSales/);
+  assert.match(script, /renderSales/);
+  assert.match(script, /pesanan aktif akan dibatalkan/i);
   assert.match(script, /\/api\/orders/);
   assert.match(script, /\/api\/products/);
   assert.match(script, /EventSource/);
+  assert.match(css, /\.sales-summary/);
   assert.match(css, /min-height:\s*48px/);
   assert.match(css, /@media\s*\(max-width:\s*600px\)/);
 });
