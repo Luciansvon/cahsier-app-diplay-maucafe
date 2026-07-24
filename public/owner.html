@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Pemilik Multi-Outlet - MAUCAFE</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="owner-page">
+  <!-- LOCK SCREEN LOGIN -->
+  <section id="owner-login" class="lock-screen">
+    <div class="lock-card">
+      <div class="brand-logo-badge large">M</div>
+      <p class="eyebrow">MAUCAFE KIOSK</p>
+      <h1>Dashboard Pemilik</h1>
+      <p class="lock-subtitle">Masukkan PIN Pemilik untuk melihat seluruh outlet.</p>
+
+      <form id="pin-form">
+        <div class="pin-display">
+          <input id="pin-input" type="password" readonly maxlength="8" placeholder="••••" aria-label="PIN Pemilik">
+        </div>
+        <div id="pin-error" class="pin-error" role="alert" hidden></div>
+        <div class="keypad">
+          <button type="button" class="key-btn" data-key="1">1</button>
+          <button type="button" class="key-btn" data-key="2">2</button>
+          <button type="button" class="key-btn" data-key="3">3</button>
+          <button type="button" class="key-btn" data-key="4">4</button>
+          <button type="button" class="key-btn" data-key="5">5</button>
+          <button type="button" class="key-btn" data-key="6">6</button>
+          <button type="button" class="key-btn" data-key="7">7</button>
+          <button type="button" class="key-btn" data-key="8">8</button>
+          <button type="button" class="key-btn" data-key="9">9</button>
+          <button id="key-clear" type="button" class="key-btn action-key">C</button>
+          <button type="button" class="key-btn" data-key="0">0</button>
+          <button type="submit" class="key-btn primary-key" aria-label="Buka dashboard">→</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- DASHBOARD UTAMA (TERPROTEKSI PIN) -->
+  <div id="owner-dashboard" hidden>
+    <header class="owner-header">
+      <div class="brand-title-group">
+        <div class="brand-logo-badge">M</div>
+        <div>
+          <p class="eyebrow" id="owner-eyebrow-tag">MAUCAFE KIOSK MULTI-OUTLET</p>
+          <h1 id="owner-header-title">Ringkasan 5 Outlet</h1>
+        </div>
+      </div>
+      <div class="owner-header-actions">
+        <span id="connection-status" class="connection offline" role="status">Menghubungkan...</span>
+        <button id="logout-btn" class="ghost small-btn">Kunci</button>
+      </div>
+    </header>
+
+    <div id="error-banner" class="error-banner" role="alert" hidden></div>
+
+    <!-- BAR PEMILIH OUTLET GLOBAL (DAPAT DIAKSES DI SEMUA TAB) -->
+    <div class="global-outlet-bar">
+      <div class="outlet-selector-wrapper">
+        <label for="global-outlet-select">PILIH OUTLET:</label>
+        <select id="global-outlet-select" class="outlet-dropdown">
+          <option value="all">Semua Outlet (Ringkasan Gabungan 5 Outlet)</option>
+        </select>
+      </div>
+      <span id="active-outlet-badge" class="active-outlet-badge">Mode: SEMUA OUTLET</span>
+    </div>
+
+    <!-- TAB BAR NAVIGASI DASHBOARD OWNER -->
+    <nav class="owner-tab-bar" aria-label="Menu pemilik">
+      <button class="owner-tab active" data-tab="tab-summary">📊 Ringkasan</button>
+      <button class="owner-tab" data-tab="tab-reports">📈 Laporan Penjualan</button>
+      <button class="owner-tab" data-tab="tab-settings">⚙️ Pengaturan & Menu</button>
+      <button class="owner-tab" data-tab="tab-danger">⚠️ Zona Bahaya</button>
+    </nav>
+
+    <main class="owner-main">
+      <!-- 1. TAB RINGKASAN -->
+      <section id="tab-summary" class="owner-panel active">
+        <p id="owner-updated-at" class="owner-updated">Belum ada pembaruan</p>
+
+        <!-- Ringkasan Global Multi-Outlet -->
+        <div id="multi-summary-metrics" class="owner-metrics">
+          <article class="owner-metric owner-revenue-card">
+            <span>Total Omzet (Semua Outlet)</span>
+            <strong id="grand-revenue">Rp0</strong>
+          </article>
+          <article class="owner-metric owner-margin-card">
+            <span>Total Keuntungan Bersih</span>
+            <strong id="grand-margin">Rp0</strong>
+          </article>
+          <article class="owner-metric">
+            <span>Total Transaksi Hari Ini</span>
+            <strong id="grand-sales-count">0</strong>
+          </article>
+          <article class="owner-metric">
+            <span>Total Antrean Aktif</span>
+            <strong id="grand-active-count">0</strong>
+          </article>
+        </div>
+
+        <!-- Ringkasan Outlet Tunggal (Saat Outlet Dipilih) -->
+        <div id="single-summary-metrics" class="owner-metrics" hidden>
+          <article class="owner-metric owner-revenue-card">
+            <span>Omzet Outlet</span>
+            <strong id="owner-revenue">Rp0</strong>
+          </article>
+          <article class="owner-metric">
+            <span>Tunai di laci</span>
+            <strong id="owner-cash">Rp0</strong>
+          </article>
+          <article class="owner-metric">
+            <span>QRIS di bank</span>
+            <strong id="owner-qris">Rp0</strong>
+          </article>
+          <article class="owner-metric owner-cost-card">
+            <span>Total Modal (HPP)</span>
+            <strong id="owner-cost">Rp0</strong>
+          </article>
+          <article class="owner-metric owner-margin-card">
+            <span>Keuntungan Bersih</span>
+            <strong id="owner-margin">Rp0</strong>
+          </article>
+          <article id="owner-tax-card" class="owner-metric" hidden>
+            <span id="owner-tax-label">Pajak Terkumpul</span>
+            <strong id="owner-tax">Rp0</strong>
+          </article>
+          <article class="owner-metric">
+            <span>Transaksi</span>
+            <strong id="owner-sales-count">0</strong>
+          </article>
+          <article class="owner-metric">
+            <span>Antrean aktif</span>
+            <strong id="owner-active-count">0</strong>
+          </article>
+        </div>
+
+        <!-- Grid Cards 5 Outlet (Global View) -->
+        <div id="outlets-grid-container">
+          <div class="owner-section-title" style="margin-top: 1.5rem;">
+            <div>
+              <p class="eyebrow">MONITORING LOKASI</p>
+              <h2>Daftar Outlet</h2>
+            </div>
+          </div>
+          <div id="outlets-grid" class="outlets-grid">
+            <!-- Diisi via JS -->
+          </div>
+        </div>
+
+        <!-- Transaksi Terbaru Outlet (Single View) -->
+        <div id="single-recent-sales-container" hidden style="margin-top: 1.5rem;">
+          <div class="owner-section-title">
+            <div>
+              <p class="eyebrow">AKTIVITAS TERAKHIR</p>
+              <h2 id="single-recent-sales-title">Transaksi Terbaru Outlet</h2>
+            </div>
+          </div>
+          <div id="owner-recent-sales" class="sales-list"></div>
+        </div>
+      </section>
+
+      <!-- 2. TAB LAPORAN PENJUALAN -->
+      <section id="tab-reports" class="owner-panel">
+        <div class="owner-section">
+          <div class="report-header-bar">
+            <label class="report-date-field">
+              <span>Tanggal laporan</span>
+              <input id="report-date" type="date">
+            </label>
+            <button id="export-excel-btn" class="primary small-btn export-excel-btn">📥 Unduh Laporan Excel</button>
+          </div>
+          <div class="sales-columns">
+            <section class="sales-section">
+              <div class="sales-section-header">
+                <h3 id="report-products-title">Laporan Penjualan Per Produk</h3>
+              </div>
+              <div id="sold-products"></div>
+            </section>
+            <section class="sales-section">
+              <div class="sales-section-header">
+                <h3 id="report-transactions-title">Riwayat Transaksi Lengkap</h3>
+              </div>
+              <div id="sales-list" class="sales-list"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. TAB PENGATURAN & MENU -->
+      <section id="tab-settings" class="owner-panel">
+        <!-- Pengelolaan Utama -->
+        <section class="owner-section">
+          <div class="owner-section-title">
+            <div>
+              <p class="eyebrow">PENGELOLAAN OPERASIONAL</p>
+              <h2>Menu & Keamanan</h2>
+            </div>
+          </div>
+          <div class="owner-settings-grid">
+            <button id="open-menu-mgmt-modal" class="primary action-button">Kelola Menu Kedai (Harga & HPP)</button>
+            <button id="open-change-pin-modal" class="ghost">Ganti PIN Pemilik</button>
+          </div>
+        </section>
+
+        <!-- Pengaturan Pajak -->
+        <section class="owner-section">
+          <div class="owner-section-title">
+            <div>
+              <p class="eyebrow">PAJAK OUTLET</p>
+              <h2 id="tax-settings-title">Pengaturan Pajak Outlet</h2>
+            </div>
+          </div>
+          <div class="card tax-settings-card">
+            <p class="form-help">Atur pajak yang ditambahkan saat checkout kasir outlet.</p>
+            <form id="tax-config-form">
+              <label class="toggle-field">
+                <span>Pajak aktif</span>
+                <input id="tax-enabled" type="checkbox">
+              </label>
+              <label class="modal-field">
+                <span>Label pajak (tampil di struk)</span>
+                <input id="tax-label" type="text" maxlength="30" placeholder="Pajak" value="Pajak">
+              </label>
+              <label class="modal-field">
+                <span>Tarif (%)</span>
+                <input id="tax-rate" type="number" min="0" max="100" step="0.5" value="10">
+              </label>
+              <div class="button-group">
+                <button type="submit" class="primary action-button">Simpan Pengaturan Pajak</button>
+              </div>
+            </form>
+            <div id="tax-config-status" class="media-status-msg" hidden></div>
+          </div>
+        </section>
+
+        <!-- Media TV Display -->
+        <section class="owner-section">
+          <div class="owner-section-title">
+            <div>
+              <p class="eyebrow">IKLAN & PROMOSI TV</p>
+              <h2 id="media-settings-title">Ganti Media Display TV Outlet</h2>
+            </div>
+          </div>
+          <div class="card media-settings-card">
+            <p class="form-help">Pilih file video (.mp4/.webm) atau foto (.jpg/.png) dari galeri HP/Komputer untuk ditayangkan di layar TV outlet.</p>
+            <div class="current-media-badge" id="owner-current-media">
+              Media aktif: <strong>Loading...</strong>
+            </div>
+            <form id="owner-media-form" class="media-upload-form">
+              <div class="form-field">
+                <label for="owner-media-file">File Video atau Foto Baru:</label>
+                <input type="file" id="owner-media-file" accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" required>
+              </div>
+              <div class="button-group">
+                <button type="submit" id="owner-upload-btn" class="primary action-button">Unggah & Tayangkan di TV</button>
+                <button type="button" id="owner-reset-media-btn" class="secondary action-button">Kembalikan Video Bawaan</button>
+              </div>
+            </form>
+            <div id="owner-media-status" class="media-status-msg" hidden></div>
+          </div>
+        </section>
+      </section>
+
+      <!-- 4. TAB ZONA BAHAYA -->
+      <section id="tab-danger" class="owner-panel">
+        <!-- Hapus All Outlets -->
+        <section id="danger-global-section" class="owner-section danger-zone">
+          <p class="eyebrow">ZONA BAHAYA GLOBAL</p>
+          <h2>Pembersihan Riwayat SEMUA Outlet</h2>
+          <p>Fitur ini mengosongkan riwayat penjualan di <strong>seluruh outlet (5 outlet)</strong> sekaligus.</p>
+          <label class="danger-confirm-field">
+            <span>Ketik HAPUS SEMUA untuk mengaktifkan tombol</span>
+            <input id="global-danger-confirmation" type="text" autocomplete="off" placeholder="HAPUS SEMUA">
+          </label>
+          <button id="clear-all-outlets-sales-btn" class="danger-btn owner-mutating" disabled>Hapus Riwayat Penjualan SEMUA Outlet</button>
+        </section>
+
+        <!-- Action Outlet Single -->
+        <section id="danger-single-section" class="owner-section danger-zone" style="margin-top: 1.5rem;">
+          <p class="eyebrow">ZONA BAHAYA OUTLET AKTIF</p>
+          <h2 id="danger-single-title">Perubahan Permanen Outlet Single</h2>
+          <p id="danger-single-desc">Reset antrean membatalkan pesanan aktif. Hapus penjualan mengosongkan riwayat outlet yang sedang dipilih.</p>
+
+          <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 10px;">
+            <button id="reset-queue-owner" class="danger-btn owner-mutating">Reset antrean outlet ke 001</button>
+            <button id="purge-sales-owner" class="ghost owner-mutating">Bersihkan transaksi lama (> 30 hari)</button>
+            <label class="danger-confirm-field">
+              <span id="danger-single-confirm-label">Ketik HAPUS untuk membuka tombol penghapusan outlet aktif</span>
+              <input id="danger-confirmation" type="text" autocomplete="off" placeholder="HAPUS">
+            </label>
+            <button id="clear-sales-owner" class="danger-btn owner-mutating" disabled>Hapus penjualan outlet aktif</button>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div id="success-toast" class="toast" role="status" hidden></div>
+  </div>
+
+  <!-- MODAL GANTI PIN -->
+  <div id="change-pin-modal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Ganti PIN Pemilik</h2>
+        <button id="close-change-pin-modal" type="button" class="close-icon-btn" aria-label="Tutup">×</button>
+      </div>
+      <form id="change-pin-form">
+        <label class="modal-field">
+          <span>PIN saat ini</span>
+          <input id="current-pin-input" type="password" required maxlength="8" inputmode="numeric">
+        </label>
+        <label class="modal-field">
+          <span>PIN baru, 4–8 angka</span>
+          <input id="new-pin-input" type="password" required maxlength="8" inputmode="numeric">
+        </label>
+        <label class="modal-field">
+          <span>Ulangi PIN baru</span>
+          <input id="confirm-pin-input" type="password" required maxlength="8" inputmode="numeric">
+        </label>
+        <div id="change-pin-error" class="modal-error" role="alert" hidden></div>
+        <div class="modal-actions">
+          <button id="cancel-change-pin" type="button" class="ghost">Batal</button>
+          <button type="submit" class="primary">Simpan PIN</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL KELOLA MENU KEDAI -->
+  <div id="menu-mgmt-modal" class="modal-overlay" hidden>
+    <div class="modal-card wide-modal">
+      <div class="modal-header">
+        <h2 id="menu-mgmt-modal-title">Kelola Menu Kedai</h2>
+        <button id="close-menu-mgmt-modal" type="button" class="close-icon-btn" aria-label="Tutup">×</button>
+      </div>
+      <div class="outlet-selector-wrapper" style="margin: 8px 0 16px;">
+        <label for="menu-modal-outlet-select">OUTLET YANG DIKELOLA:</label>
+        <select id="menu-modal-outlet-select" class="outlet-dropdown"></select>
+      </div>
+
+      <details class="add-product-details">
+        <summary class="add-product-summary">+ Tambah Menu Baru</summary>
+        <form id="add-product-form" class="add-product-form">
+          <div class="form-grid-2">
+            <label class="modal-field">
+              <span>Nama Menu</span>
+              <input id="new-product-name" type="text" required placeholder="misal: Kopi Tubruk">
+            </label>
+            <label class="modal-field">
+              <span>Kategori</span>
+              <select id="new-product-category" required>
+                <option value="Kopi">Kopi</option>
+                <option value="Non-Kopi">Non-Kopi</option>
+                <option value="Makanan">Makanan</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-grid-2">
+            <label class="modal-field">
+              <span>Harga Jual (Rp)</span>
+              <input id="new-product-price" type="number" min="0" required placeholder="15000">
+            </label>
+            <label class="modal-field">
+              <span>Harga Modal / HPP (Rp)</span>
+              <input id="new-product-cost" type="number" min="0" required placeholder="7000">
+            </label>
+          </div>
+          <div id="add-product-error" class="modal-error" hidden></div>
+          <div class="button-group">
+            <button type="submit" class="primary action-button">Simpan Menu Baru</button>
+          </div>
+        </form>
+      </details>
+
+      <hr class="modal-divider">
+
+      <div class="modal-section-title">
+        <h3>Daftar Menu Saat Ini</h3>
+      </div>
+      <div id="menu-mgmt-list" class="menu-mgmt-list">
+        <!-- Diisi oleh JS -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/owner.js"></script>
+</body>
+</html>

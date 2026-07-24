@@ -2,12 +2,17 @@
   "businessDate": null,
   "nextQueueNumber": 1,
   "products": [
-    { "id": "espresso", "name": "Espresso", "category": "Kopi", "price": 15000, "active": true },
-    { "id": "kopi-susu", "name": "Kopi Susu", "category": "Kopi", "price": 18000, "active": true },
-    { "id": "chocolate", "name": "Chocolate", "category": "Non-Kopi", "price": 20000, "active": true },
-    { "id": "croissant", "name": "Croissant", "category": "Makanan", "price": 17000, "active": true }
+    { "id": "espresso", "name": "Espresso", "category": "Kopi", "price": 15000, "cost": 7000, "active": true },
+    { "id": "kopi-susu", "name": "Kopi Susu", "category": "Kopi", "price": 18000, "cost": 8000, "active": true },
+    { "id": "chocolate", "name": "Chocolate", "category": "Non-Kopi", "price": 20000, "cost": 9000, "active": true },
+    { "id": "croissant", "name": "Croissant", "category": "Makanan", "price": 17000, "cost": 8000, "active": true }
   ],
   "orders": [],
   "activeCall": null,
+  "taxConfig": {
+    "enabled": false,
+    "label": "Pajak",
+    "rate": 10
+  },
   "revision": 0
 }

@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Proposal Penawaran Harga & Analisis Opsi - Sistem Outlet Kopi</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    @page {
+      size: A4;
+      margin: 15mm 15mm 15mm 15mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1e293b;
+      background-color: #ffffff;
+      line-height: 1.6;
+      font-size: 13px;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .header-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 3px solid #dc2626;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+
+    .logo-area h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #991b1b;
+      letter-spacing: -0.5px;
+      text-transform: uppercase;
+    }
+
+    .logo-area p {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .meta-box {
+      text-align: right;
+      font-size: 11px;
+      color: #475569;
+    }
+
+    .meta-box strong {
+      color: #0f172a;
+    }
+
+    .doc-title {
+      text-align: center;
+      margin: 20px 0 24px 0;
+    }
+
+    .doc-title h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: -0.3px;
+    }
+
+    .doc-title p {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #991b1b;
+      border-left: 4px solid #dc2626;
+      padding-left: 10px;
+      margin: 24px 0 12px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .intro-box {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      color: #334155;
+    }
+
+    .intro-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .intro-card {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .intro-card h4 {
+      font-size: 12px;
+      color: #991b1b;
+      margin-bottom: 4px;
+    }
+
+    .intro-card p {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .low-budget-box {
+      background-color: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 11.5px;
+      color: #92400e;
+    }
+
+    .low-budget-box h4 {
+      font-weight: 700;
+      color: #b45309;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .low-budget-box ol {
+      padding-left: 18px;
+    }
+
+    .low-budget-box li {
+      margin-bottom: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      font-size: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    th {
+      background-color: #991b1b;
+      color: #ffffff;
+      text-align: left;
+      padding: 10px 12px;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #334155;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #f8fafc;
+    }
+
+    tr.total-row td {
+      background-color: #fee2e2;
+      font-weight: 700;
+      color: #991b1b;
+      font-size: 12.5px;
+      border-top: 2px solid #f87171;
+    }
+
+    .package-container {
+      margin-bottom: 20px;
+    }
+
+    .package-header {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-bottom: none;
+      padding: 8px 12px;
+      font-weight: 700;
+      font-size: 13px;
+      color: #0f172a;
+      border-top-left-radius: 6px;
+      border-top-right-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .badge {
+      background: #dc2626;
+      color: white;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .badge-green {
+      background: #16a34a;
+    }
+
+    .pros-cons-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .pros-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .pros-box h5 {
+      color: #16a34a;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .cons-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .cons-box h5 {
+      color: #dc2626;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .pros-cons-card {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .pros-cons-card h4 {
+      font-size: 13px;
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .terms-box {
+      background-color: #fff8f8;
+      border: 1px dashed #fca5a5;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 20px;
+      font-size: 11px;
+      color: #7f1d1d;
+    }
+
+    .terms-box h4 {
+      font-weight: 700;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .terms-box ol {
+      padding-left: 18px;
+    }
+
+    .terms-box li {
+      margin-bottom: 4px;
+    }
+
+    .signature-area {
+      margin-top: 36px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .signature-box {
+      text-align: center;
+      width: 220px;
+      font-size: 12px;
+    }
+
+    .signature-box .title {
+      color: #64748b;
+      margin-bottom: 60px;
+    }
+
+    .signature-box .name {
+      font-weight: 700;
+      color: #0f172a;
+      border-bottom: 1px solid #94a3b8;
+      padding-bottom: 4px;
+    }
+
+    .signature-box .role {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header Banner -->
+    <div class="header-banner">
+      <div class="logo-area">
+        <h1>SISTEM KEDAI KOPI</h1>
+        <p>Antrean Digital &amp; Pemantauan Outlet</p>
+      </div>
+      <div class="meta-box">
+        <p><strong>Tanggal:</strong> 23 Juli 2026</p>
+        <p><strong>No. Proposal:</strong> PR/2026/07/001</p>
+        <p><strong>Perihal:</strong> Penawaran Harga &amp; Analisis Opsi</p>
+      </div>
+    </div>
+
+    <!-- Title -->
+    <div class="doc-title">
+      <h2>PROPOSAL PENAWARAN HARGA &amp; ANALYSIS OPSI SISTEM</h2>
+      <p>Solusi Digitalisasi Antrean Smart TV, Kasir HP &amp; Pemantauan Keuntungan Harian</p>
+    </div>
+
+    <!-- Deskripsi Sistem -->
+    <div class="section-title">I. Ringkasan Fitur Utama Sistem</div>
+    <div class="intro-box">
+      Sistem ini dirancang khusus untuk operasional kedai kopi agar alur pemanggilan pelanggan di layar TV berjalan otomatis, sekaligus memberikan kontrol omzet dan keuntungan bersih bagi pemilik toko.
+      <div class="intro-grid">
+        <div class="intro-card">
+          <h4>1. Panel Kasir (HP/Tablet)</h4>
+          <p>Tombol sentuh besar, bebas salah tekan, memanggil &amp; menambah nomor antrean secara praktis.</p>
+        </div>
+        <div class="intro-card">
+          <h4>2. Layar TV (Signage)</h4>
+          <p>Tampilan 16:9 nomor antrean jelas terbaca 3 meter dipadu pemutar video/foto promosi produk.</p>
+        </div>
+        <div class="intro-card">
+          <h4>3. Pemantauan Pemilik</h4>
+          <p>Cek omzet harian, pencocokan Tunai vs QRIS, modal (HPP), dan laba bersih langsung dari HP Pemilik.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Box Low Budget Terbaik -->
+    <div class="low-budget-box">
+      <h4>Mengapa Penawaran Ini Adalah Pilihan Paling Terjangkau (Low Budget):</h4>
+      <ol>
+        <li><strong>Paket 3-in-1:</strong> Dalam 1 harga sudah mencakup Panel Kasir + Smart TV Signage + Monitoring Pemilik (Tanpa Beli Terpisah).</li>
+        <li><strong>Lebih Hemat dari Alat Pager Fisik:</strong> Alat antrean fisik harganya 2-3 Juta tanpa tampilan layar TV promo &amp; tanpa rekap omzet.</li>
+        <li><strong>Hemat 80% dari Custom Software House:</strong> Pembuatan sistem custom sekelas ini di perusahaan IT bernilai Rp 15-25 Juta.</li>
+      </ol>
+    </div>
+
+    <!-- Opsi Skema Harga -->
+    <div class="section-title">II. Opsi Skema Harga Sistem</div>
+
+    <!-- Opsi 1 -->
+    <div class="package-container">
+      <div class="package-header">
+        <span>OPSI 1: Beli Putus 1 Outlet (Siap Cloud Online)</span>
+        <span class="badge">Sekali Bayar + Server</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 70%;">Rincian Komponen Layanan</th>
+            <th style="width: 30%; text-align: right;">Harga</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Lisensi Sistem 1 Outlet</strong> (Panel Kasir + Layar TV + Dashboard Pemilik)</td>
+            <td style="text-align: right;">Rp 3.500.000</td>
+          </tr>
+          <tr>
+            <td><strong>Sewa Cloud Server Online</strong> (1 Tahun Pertama - Tanpa Laptop Toko)</td>
+            <td style="text-align: right;">Rp 750.000</td>
+          </tr>
+          <tr>
+            <td><strong>Penyetelan &amp; Pelatihan Kasir di Toko</strong></td>
+            <td style="text-align: right;">Rp 300.000</td>
+          </tr>
+          <tr>
+            <td><strong>Garansi Bantuan Kendala</strong> (1 Bulan Pertama)</td>
+            <td style="text-align: right; color: #16a34a; font-weight: 600;">GRATIS</td>
+          </tr>
+          <tr class="total-row">
+            <td>TOTAL INVESTMENT (OPSI 1)</td>
+            <td style="text-align: right;">Rp 4.550.000</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Opsi 2 -->
+    <div class="package-container">
+      <div class="package-header">
+        <span>OPSI 2: Beli Putus Multi-Outlet (Hingga 5 Cabang)</span>
+        <span class="badge">Rekomendasi Cabang</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 70%;">Rincian Komponen Layanan</th>
+            <th style="width: 30%; text-align: right;">Harga</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Lisensi Sistem Multi-Outlet</strong> (Bisa dipakai &amp; dipantau hingga 5 cabang)</td>
+            <td style="text-align: right;">Rp 5.800.000</td>
+          </tr>
+          <tr>
+            <td><strong>Sewa Cloud Server Online Multi-Outlet</strong> (1 Tahun Pertama)</td>
+            <td style="text-align: right;">Rp 1.000.000</td>
+          </tr>
+          <tr>
+            <td><strong>Penyetelan &amp; Pelatihan Kasir</strong> (Lokasi Utama)</td>
+            <td style="text-align: right;">Rp 500.000</td>
+          </tr>
+          <tr>
+            <td><strong>Garansi Bantuan Kendala</strong> (1 Bulan Pertama)</td>
+            <td style="text-align: right; color: #16a34a; font-weight: 600;">GRATIS</td>
+          </tr>
+          <tr class="total-row">
+            <td>TOTAL INVESTMENT (OPSI 2)</td>
+            <td style="text-align: right;">Rp 7.300.000</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Opsi 3 -->
+    <div class="package-container">
+      <div class="package-header">
+        <span>OPSI 3: Sewa Bulanan (Hosting Server Sudah Termasuk)</span>
+        <span class="badge badge-green">All-in-One Bulanan</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 70%;">Rincian Komponen Layanan</th>
+            <th style="width: 30%; text-align: right;">Biaya</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Sewa Sistem &amp; Cloud Server Online</strong> (Per 1 Outlet / Cabang)</td>
+            <td style="text-align: right;">Rp 275.000 / bln</td>
+          </tr>
+          <tr>
+            <td><strong>Penyetelan Awal &amp; Pelatihan Kasir</strong> (Dibayar 1x di awal)</td>
+            <td style="text-align: right;">Rp 350.000</td>
+          </tr>
+          <tr>
+            <td><strong>Sewa Cloud Server &amp; Perawatan Sistem Rutin</strong></td>
+            <td style="text-align: right; color: #16a34a; font-weight: 600;">TERMASUK</td>
+          </tr>
+          <tr class="total-row">
+            <td>TOTAL INVESTMENT (OPSI 3)</td>
+            <td style="text-align: right;">Rp 625.000 (Bln 1) | Rp 275rb/bln</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Opsi Starter -->
+    <div class="package-container">
+      <div class="package-header">
+        <span>OPSI STARTER: Beli Putus Server Lokal (Wi-Fi Toko / Offline)</span>
+        <span class="badge">Paling Hemat / Minim Budget</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 70%;">Rincian Komponen Layanan</th>
+            <th style="width: 30%; text-align: right;">Harga</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Lisensi Sistem 1 Outlet Offline</strong> (Pakai Wi-Fi Lokal Toko)</td>
+            <td style="text-align: right;">Rp 2.200.000</td>
+          </tr>
+          <tr>
+            <td><strong>Penyetelan &amp; Pelatihan Kasir di Toko</strong></td>
+            <td style="text-align: right;">Rp 300.000</td>
+          </tr>
+          <tr>
+            <td><strong>Bebas Sewa Server Bulanan Selamanya</strong></td>
+            <td style="text-align: right; color: #16a34a; font-weight: 600;">TERMASUK</td>
+          </tr>
+          <tr class="total-row">
+            <td>TOTAL INVESTMENT (STARTER OFFLINE)</td>
+            <td style="text-align: right;">Rp 2.500.000</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Section III: Kelebihan & Kekurangan Masing-Masing Opsi -->
+    <div class="section-title">III. Analisis Kelebihan &amp; Kekurangan Masing-Masing Opsi</div>
+
+    <!-- Card Opsi 1 -->
+    <div class="pros-cons-card">
+      <h4>OPSI 1: Beli Putus 1 Outlet Cloud Online (Rp 4.550.000)</h4>
+      <div class="pros-cons-grid">
+        <div class="pros-box">
+          <h5>[+] Kelebihan System:</h5>
+          <ul style="padding-left: 16px;">
+            <li>Tanpa butuh Laptop di toko (HP &amp; TV langsung jalan).</li>
+            <li>Pemilik toko bisa cek omzet &amp; laba harian dari rumah.</li>
+            <li>Bebas biaya sewa lisensi aplikasi selamanya.</li>
+          </ul>
+        </div>
+        <div class="cons-box">
+          <h5>[-] Kekurangan System:</h5>
+          <ul style="padding-left: 16px;">
+            <li>Memerlukan perpanjangan sewa cloud server Rp 750rb/thn (mulai tahun ke-2).</li>
+            <li>Memerlukan koneksi internet di toko.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card Opsi 2 -->
+    <div class="pros-cons-card">
+      <h4>OPSI 2: Beli Putus Multi-Outlet 5 Cabang (Rp 7.300.000)</h4>
+      <div class="pros-cons-grid">
+        <div class="pros-box">
+          <h5>[+] Kelebihan System:</h5>
+          <ul style="padding-left: 16px;">
+            <li>Sangat hemat per cabang (~Rp 1,4 Juta / cabang).</li>
+            <li>Pemilik bisa memantau 5 cabang sekaligus dari 1 HP.</li>
+            <li>Rekapan otomatis HPP, modal &amp; laba bersih per lokasi.</li>
+          </ul>
+        </div>
+        <div class="cons-box">
+          <h5>[-] Kekurangan System:</h5>
+          <ul style="padding-left: 16px;">
+            <li>Perpanjangan server cloud multi Rp 1 Juta/thn.</li>
+            <li>Memerlukan koneksi internet di setiap cabang.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card Opsi 3 -->
+    <div class="pros-cons-card">
+      <h4>OPSI 3: Sewa Bulanan All-in-One (Rp 625rb Awal / Rp 275rb Bln)</h4>
+      <div class="pros-cons-grid">
+        <div class="pros-box">
+          <h5>[+] Kelebihan System:</h5>
+          <ul style="padding-left: 16px;">
+            <li>Tanpa modal besar di awal (Risiko 0%).</li>
+            <li>Sewa server cloud &amp; perawatan sudah termasuk.</li>
+            <li>Cocok untuk uji coba operasional toko baru.</li>
+          </ul>
+        </div>
+        <div class="cons-box">
+          <h5>[-] Kekurangan System:</h5>
+          <ul style="padding-left: 16px;">
+            <li>Ada biaya rutin bulanan selama aplikasi digunakan.</li>
+            <li>Total biaya jangka panjang lebih tinggi dari Beli Putus.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card Opsi Starter -->
+    <div class="pros-cons-card">
+      <h4>OPSI STARTER: Beli Putus Server Lokal / Offline (Rp 2.500.000)</h4>
+      <div class="pros-cons-grid">
+        <div class="pros-box">
+          <h5>[+] Kelebihan System:</h5>
+          <ul style="padding-left: 16px;">
+            <li>0 Rupiah biaya bulanan selamanya (Paling Low Budget).</li>
+            <li>Tahan mati internet (100% jalan via Wi-Fi toko).</li>
+          </ul>
+        </div>
+        <div class="cons-box">
+          <h5>[-] Kekurangan System:</h5>
+          <ul style="padding-left: 16px;">
+            <li>Wajib menyalakan 1 Laptop/PC di toko saat jam buka.</li>
+            <li>Pemilik hanya bisa cek omzet saat berada di toko.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layanan Tambahan -->
+    <div class="section-title">IV. Layanan Tambahan (Opsional)</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 70%;">Jenis Layanan / Perawatan</th>
+          <th style="width: 30%; text-align: right;">Harga / Tarif</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Paket Perawatan (Maintenance) &amp; Support Tahunan</strong><br><small style="color: #64748b;">Bantuan teknis, optimasi memori transaksi, penyesuaian PIN/Logo toko.</small></td>
+          <td style="text-align: right;">Rp 1.500.000 / thn</td>
+        </tr>
+        <tr>
+          <td><strong>Perpanjangan Sewa Cloud Server (Tahun ke-2 dan seterusnya)</strong><br><small style="color: #64748b;">Agar bisa diakses di Smart TV &amp; HP Pemilik dari internet tanpa menyalakan laptop toko.</small></td>
+          <td style="text-align: right;">Rp 750.000 / thn</td>
+        </tr>
+        <tr>
+          <td><strong>Pengembangan Fitur Khusus Baru (Custom Feature)</strong><br><small style="color: #64748b;">Penambahan fitur sesuai permintaan di luar fitur standar awal.</small></td>
+          <td style="text-align: right;">Rp 300.000 - Rp 600.000</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Syarat Ketentuan & Hak Cipta -->
+    <div class="terms-box">
+      <h4>V. Syarat Ketentuan &amp; Hak Cipta Lisensi</h4>
+      <ol>
+        <li>Pembayaran Beli Putus (Opsi 1 &amp; 2 &amp; Starter) menggunakan skema Uang Muka (DP) 50% saat kesepakatan awal, dan Pelunasan 50% setelah sistem terpasang dan siap digunakan.</li>
+        <li>Untuk Opsi Sewa Bulanan (Opsi 3), pembayaran dilakukan di awal setiap periode bulanan.</li>
+        <li>Garansi bantuan teknis gratis berlaku selama 30 hari pertama kalinya sejak sistem dipasang.</li>
+        <li><strong>Hak Cipta &amp; Kode Program sepenuhnya milik Pengembang.</strong> Klien menerima Hak Guna Pakai (Lisensi) khusus untuk operasional outlet yang disepakati.</li>
+      </ol>
+    </div>
+
+    <!-- Tanda Tangan -->
+    <div class="signature-area">
+      <div class="signature-box">
+        <div class="title">Hormat kami,</div>
+        <div class="name">Tim Pengembang Sistem</div>
+        <div class="role">Sistem Antrean &amp; POS Outlet Kopi</div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

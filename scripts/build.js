@@ -11,6 +11,7 @@ const requiredJavaScript = [
   'public/sales.js',
   'public/admin.js',
   'public/display.js',
+  'public/owner.js',
 ];
 
 for (const file of requiredJavaScript) {

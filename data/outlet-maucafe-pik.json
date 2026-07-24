@@ -1,0 +1,176 @@
+{
+  "businessDate": "2026-07-23",
+  "nextQueueNumber": 7,
+  "products": [
+    {
+      "id": "latte",
+      "name": "Latte",
+      "category": "Kopi",
+      "price": 20000,
+      "active": true
+    }
+  ],
+  "orders": [
+    {
+      "id": "12b0c7f0-f3d2-46ec-98be-22316568d9da",
+      "queueNumber": "001",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "cash",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 1,
+          "subtotal": 20000
+        }
+      ],
+      "total": 20000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 20000,
+      "status": "waiting",
+      "createdAt": "2026-07-23T14:05:42.562Z",
+      "updatedAt": "2026-07-23T14:05:42.562Z"
+    },
+    {
+      "id": "b8613905-d988-493b-9c4d-9d4edf41e423",
+      "queueNumber": "002",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "cash",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 1,
+          "subtotal": 20000
+        }
+      ],
+      "total": 20000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 20000,
+      "status": "waiting",
+      "createdAt": "2026-07-23T14:05:51.901Z",
+      "updatedAt": "2026-07-23T14:05:51.901Z"
+    },
+    {
+      "id": "a031da28-e3ac-49ee-b2f5-42697a3632e0",
+      "queueNumber": "003",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "cash",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 1,
+          "subtotal": 20000
+        }
+      ],
+      "total": 20000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 20000,
+      "status": "waiting",
+      "createdAt": "2026-07-23T14:06:09.698Z",
+      "updatedAt": "2026-07-23T14:06:09.698Z"
+    },
+    {
+      "id": "13eeed7b-f806-4f80-b9fd-6e7bbe63e7e1",
+      "queueNumber": "004",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "cash",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 1,
+          "subtotal": 20000
+        }
+      ],
+      "total": 20000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 20000,
+      "status": "waiting",
+      "createdAt": "2026-07-23T14:09:10.035Z",
+      "updatedAt": "2026-07-23T14:09:10.035Z"
+    },
+    {
+      "id": "6d23c41d-cdb1-40b5-8b14-8bbcf5e087a9",
+      "queueNumber": "005",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "cash",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 1,
+          "subtotal": 20000
+        }
+      ],
+      "total": 20000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 20000,
+      "status": "waiting",
+      "createdAt": "2026-07-23T14:14:53.683Z",
+      "updatedAt": "2026-07-23T14:14:53.683Z"
+    },
+    {
+      "id": "0868b9f9-a5e3-4f83-a72d-4c24ab65deb7",
+      "queueNumber": "006",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "cash",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 1,
+          "subtotal": 20000
+        }
+      ],
+      "total": 20000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 20000,
+      "status": "waiting",
+      "createdAt": "2026-07-23T14:24:30.376Z",
+      "updatedAt": "2026-07-23T14:24:30.376Z"
+    }
+  ],
+  "activeCall": null,
+  "promoMedia": {
+    "type": "video",
+    "url": "/media/promo.mp4",
+    "filename": "promo.mp4",
+    "updatedAt": "2026-07-23T13:54:11.686Z"
+  },
+  "taxConfig": {
+    "enabled": false,
+    "label": "Pajak",
+    "rate": 10
+  },
+  "ownerPinHash": {
+    "salt": "957d73ef1498fac88199b2f2123d46ca",
+    "hash": "06408e7cbe1ce8e2a10e0612000e066cfc9acdb50d86cae1aee3dc7d22073ebd"
+  },
+  "revision": 9
+}

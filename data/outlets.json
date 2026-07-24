@@ -1,0 +1,32 @@
+[
+  {
+    "id": "maucafe-bsd",
+    "name": "Maucafe BSD",
+    "address": "Ruko Commercial BSD City",
+    "adminPin": "1111"
+  },
+  {
+    "id": "maucafe-pik",
+    "name": "Maucafe PIK",
+    "address": "Ruko Crown Golf PIK",
+    "adminPin": "1111"
+  },
+  {
+    "id": "maucafe-bintaro",
+    "name": "Maucafe Bintaro",
+    "address": "Bintaro Jaya Sector 7",
+    "adminPin": "1111"
+  },
+  {
+    "id": "maucafe-kemang",
+    "name": "Maucafe Kemang",
+    "address": "Jl. Kemang Raya No. 12",
+    "adminPin": "1111"
+  },
+  {
+    "id": "maucafe-depok",
+    "name": "Maucafe Depok",
+    "address": "Jl. Margonda Raya No. 88",
+    "adminPin": "1111"
+  }
+]

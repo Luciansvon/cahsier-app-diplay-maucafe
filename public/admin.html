@@ -3,91 +3,118 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Panel Kedai Kopi</title>
+  <title>Panel Kasir Kedai Kopi</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="admin-page">
-  <header class="admin-header">
-    <div>
-      <p class="eyebrow">PANEL OUTLET</p>
-      <h1>Kedai Kopi</h1>
-    </div>
-    <span id="connection-status" class="connection offline" role="status">Menghubungkan...</span>
-  </header>
+  <section id="admin-login" class="lock-screen">
+    <div class="lock-card">
+      <div class="brand-logo-badge large">M</div>
+      <p class="eyebrow" id="admin-login-outlet-tag">MAUCAFE KIOSK</p>
+      <h1 id="admin-login-title">Panel Kasir Outlet</h1>
+      <p class="lock-subtitle">Masukkan PIN Admin Kasir untuk membuka panel kasir.</p>
 
-  <div id="error-banner" class="error-banner" role="alert" hidden></div>
-
-  <nav class="tab-bar" aria-label="Menu admin">
-    <button class="tab active" data-tab="cashier-panel">Kasir</button>
-    <button class="tab" data-tab="orders-panel">Pesanan <span id="order-count" class="count">0</span></button>
-    <button class="tab" data-tab="sales-panel">Penjualan</button>
-    <button class="tab" data-tab="menu-panel">Menu</button>
-  </nav>
-
-  <main>
-    <section id="cashier-panel" class="panel active">
-      <div class="section-heading">
-        <div><p class="eyebrow">BUAT PESANAN</p><h2>Pilih menu</h2></div>
-      </div>
-      <div id="product-grid" class="product-grid"></div>
-      <aside class="cart-card">
-        <div class="section-heading"><h2>Keranjang</h2><strong id="cart-total">Rp0</strong></div>
-        <div id="cart-items" class="cart-items"><p class="empty-state">Belum ada menu dipilih.</p></div>
-        <div class="payment-grid" role="group" aria-label="Metode pembayaran">
-          <button class="payment active" data-payment="cash">Tunai</button>
-          <button class="payment" data-payment="QRIS">QRIS</button>
+      <form id="admin-pin-form">
+        <div class="pin-display">
+          <input id="admin-pin-input" type="password" readonly maxlength="8" placeholder="••••" aria-label="PIN Admin">
         </div>
-        <button id="checkout" class="primary action-button" disabled>Sudah Dibayar</button>
-      </aside>
-    </section>
-
-    <section id="orders-panel" class="panel">
-      <div class="section-heading">
-        <div><p class="eyebrow">ANTREAN HARI INI</p><h2>Pesanan aktif</h2></div>
-        <button id="reset-queue" class="danger ghost action-button">Reset</button>
-      </div>
-      <div id="orders-list" class="orders-list"></div>
-    </section>
-
-    <section id="sales-panel" class="panel">
-      <div class="section-heading">
-        <div><p class="eyebrow">HARI INI</p><h2>Catatan penjualan</h2></div>
-      </div>
-      <div class="sales-summary">
-        <article class="sales-card featured"><span>Omzet</span><strong id="sales-revenue">Rp0</strong></article>
-        <article class="sales-card"><span>Transaksi</span><strong id="sales-count">0</strong></article>
-        <article class="sales-card"><span>Tunai</span><strong id="sales-cash">Rp0</strong></article>
-        <article class="sales-card"><span>QRIS</span><strong id="sales-qris">Rp0</strong></article>
-      </div>
-      <div class="sales-columns">
-        <section class="sales-section">
-          <h3>Produk terjual</h3>
-          <div id="sold-products" class="sold-products"></div>
-        </section>
-        <section class="sales-section">
-          <h3>Transaksi</h3>
-          <div id="sales-list" class="sales-list"></div>
-        </section>
-      </div>
-    </section>
-
-    <section id="menu-panel" class="panel">
-      <div class="section-heading"><div><p class="eyebrow">PENGATURAN</p><h2>Daftar menu</h2></div></div>
-      <form id="product-form" class="product-form">
-        <input type="hidden" id="product-id">
-        <label>Nama menu<input id="product-name" required maxlength="60" placeholder="Contoh: Kopi Susu"></label>
-        <label>Kategori<input id="product-category" required maxlength="40" placeholder="Kopi"></label>
-        <label>Harga<input id="product-price" required type="number" min="0" step="1000" inputmode="numeric" placeholder="18000"></label>
-        <div class="form-actions">
-          <button type="button" id="cancel-edit" class="ghost" hidden>Batal</button>
-          <button type="submit" class="primary action-button">Simpan menu</button>
+        <div id="admin-pin-error" class="pin-error" role="alert" hidden></div>
+        <div class="keypad">
+          <button type="button" class="key-btn" data-key="1">1</button>
+          <button type="button" class="key-btn" data-key="2">2</button>
+          <button type="button" class="key-btn" data-key="3">3</button>
+          <button type="button" class="key-btn" data-key="4">4</button>
+          <button type="button" class="key-btn" data-key="5">5</button>
+          <button type="button" class="key-btn" data-key="6">6</button>
+          <button type="button" class="key-btn" data-key="7">7</button>
+          <button type="button" class="key-btn" data-key="8">8</button>
+          <button type="button" class="key-btn" data-key="9">9</button>
+          <button id="admin-key-clear" type="button" class="key-btn action-key">C</button>
+          <button type="button" class="key-btn" data-key="0">0</button>
+          <button type="submit" class="key-btn primary-key" aria-label="Masuk kasir">→</button>
         </div>
       </form>
-      <div id="menu-list" class="menu-list"></div>
-    </section>
-  </main>
+    </div>
+  </section>
 
-  <div id="success-toast" class="toast" role="status" hidden></div>
+  <div id="admin-main-view" hidden>
+    <header class="admin-header">
+      <div class="brand-title-group">
+        <div class="brand-logo-badge">M</div>
+        <div>
+          <p class="eyebrow" id="admin-outlet-badge">MAUCAFE KIOSK</p>
+          <h1 id="admin-outlet-name">Kedai Kopi</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span id="connection-status" class="connection offline" role="status">Menghubungkan...</span>
+        <button id="admin-logout-btn" class="ghost small-btn">Kunci</button>
+      </div>
+    </header>
+
+    <div id="error-banner" class="error-banner" role="alert" hidden></div>
+
+    <nav class="tab-bar" aria-label="Menu admin">
+      <button class="tab active" data-tab="cashier-panel">Kasir</button>
+      <button class="tab" data-tab="orders-panel">Pesanan <span id="order-count" class="count">0</span></button>
+      <button class="tab" data-tab="media-panel">Media TV</button>
+    </nav>
+
+    <main>
+      <section id="cashier-panel" class="panel active">
+        <div class="section-heading">
+          <div><p class="eyebrow">BUAT PESANAN</p><h2>Pilih menu</h2></div>
+        </div>
+        <div id="product-grid" class="product-grid"></div>
+        <aside class="cart-card">
+          <div class="section-heading"><h2>Keranjang</h2></div>
+          <div id="cart-items" class="cart-items"><p class="empty-state">Belum ada menu dipilih.</p></div>
+          <div class="cart-totals">
+            <div class="cart-total-row"><span>Subtotal</span><strong id="cart-subtotal">Rp0</strong></div>
+            <div id="cart-tax-row" class="cart-total-row" hidden><span id="cart-tax-label">Pajak 10%</span><strong id="cart-tax-amount">Rp0</strong></div>
+            <div class="cart-total-row cart-grand-total"><span>Total</span><strong id="cart-total">Rp0</strong></div>
+          </div>
+          <div class="payment-grid" role="group" aria-label="Metode pembayaran">
+            <button class="payment active" data-payment="cash">Tunai</button>
+            <button class="payment" data-payment="QRIS">QRIS</button>
+          </div>
+          <button id="checkout" class="primary action-button" disabled>Sudah Dibayar</button>
+        </aside>
+      </section>
+
+      <section id="orders-panel" class="panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">ANTREAN HARI INI</p><h2>Pesanan aktif</h2></div>
+        </div>
+        <div id="orders-list" class="orders-list"></div>
+      </section>
+
+      <section id="media-panel" class="panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">IKLAN & PROMOSI TV</p><h2>Ganti Media Display</h2></div>
+        </div>
+        <div class="card media-settings-card">
+          <p class="form-help">Pilih file video (.mp4/.webm) atau foto (.jpg/.png) dari galeri HP/Komputer untuk ditayangkan di layar TV antrean.</p>
+          <div class="current-media-badge" id="admin-current-media">
+            Media aktif: <strong>Loading...</strong>
+          </div>
+          <form id="admin-media-form" class="media-upload-form">
+            <div class="form-field">
+              <label for="admin-media-file">File Video atau Foto Baru:</label>
+              <input type="file" id="admin-media-file" accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" required>
+            </div>
+            <div class="button-group">
+              <button type="submit" id="admin-upload-btn" class="primary action-button">Unggah & Tayangkan di TV</button>
+              <button type="button" id="admin-reset-media-btn" class="secondary action-button">Kembalikan Video Bawaan</button>
+            </div>
+          </form>
+          <div id="admin-media-status" class="media-status-msg" hidden></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="success-toast" class="toast" role="status" hidden></div>
+  </div>
   <script type="module" src="/admin.js"></script>
 </body>
 </html>

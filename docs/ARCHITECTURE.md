@@ -1,75 +1,55 @@
-# Arsitektur Coffee Queue Display
+# Arsitektur Coffee Queue Display (Multi-Outlet)
 
 ## Status
 
-Prototype lokal sudah diimplementasikan dengan Node.js tanpa dependency eksternal.
+Prototype multi-outlet (5 outlet demo) sudah diimplementasikan dengan Node.js tanpa dependency eksternal.
 
 ## Gambaran sistem
 
-Demo memakai laptop sebagai server lokal. HP atau tablet membuka panel admin, sedangkan laptop atau Smart TV membuka layar pelanggan.
+Satu server dapat dijalankan di laptop (lokal) atau dipasang di hosting. Server melayani 5 outlet sekaligus (`maucafe-bsd`, `maucafe-pik`, `maucafe-bintaro`, `maucafe-kemang`, `maucafe-depok`).
 
 ```text
-HP/tablet admin
-      |
-      | Wi-Fi atau hotspot yang sama
-      v
-Laptop server lokal
-      |
-      +-- /admin
-      +-- /display --> browser laptop atau Smart TV
-      +-- REST API
-      +-- SSE realtime
+HP/Tablet Kasir per Outlet            Laptop / Smart TV per Outlet             HP/Laptop Pemilik
+(/outlet/:id/admin - PIN 1111)        (/outlet/:id/display - sign 16:9)       (/owner - PIN 1234)
+               |                                     |                                |
+               +-------------------------------------+--------------------------------+
+                                                     |
+                                                     v
+                                      Server Multi-Outlet (Node.js)
+                                                     |
+                                      +--------------+--------------+
+                                      |                             |
+                             data/outlets.json            data/outlet-<id>.json
+                             (Registry 5 Outlet)          (State Per Outlet)
 ```
 
 ## Halaman aplikasi
 
-### `/admin`
+### `/outlet/:id/admin`
+Panel sentuh kasir terisolasi per outlet. Dilindungi PIN Admin Outlet (default `1111`).
+Fungsi utama:
+- Buat pesanan baru & pilih metode bayar (Tunai/QRIS);
+- Panggil / panggil ulang nomor antrean;
+- Tandai pesanan selesai atau batal;
+- Ganti media promo TV outlet tersebut.
 
-Panel sentuh untuk kasir. Fungsi minimum:
+### `/outlet/:id/display`
+Layar TV antrean 16:9 terisolasi per outlet.
+- Kolom kiri (34%): Nomor antrean aktif dipanggil + Web Speech suara panggilan.
+- Kolom kanan (66%): Video/Foto promo outlet atau slideshow menu.
 
-- menaikkan nomor antrean;
-- menurunkan nomor untuk koreksi;
-- memanggil ulang;
-- menandai pesanan selesai;
-- mereset antrean dengan konfirmasi;
-- merangkum omzet harian dari pesanan yang sudah dibayar;
-- memisahkan pembayaran Tunai dan QRIS;
-- mempertahankan transaksi selesai dan batal saat antrean direset.
+### `/owner`
+Dashboard terpadu pemilik (Owner) untuk memantau semua outlet dalam 1 tempat. Dilindungi PIN Pemilik (`1234`).
+- Ringkasan gabungan (Total Omzet, Profit, Transaksi, Antrean Aktif 5 Outlet).
+- Grid kartu monitoring 5 outlet.
+- Drilldown ke detail outlet mana saja untuk laporan per produk, ekspor Excel, kelola menu, dan ganti PIN.
 
-### `/display`
+## Keamanan & Penguncian
 
-Layar 16:9 untuk pelanggan. Nomor aktif harus lebih menonjol daripada iklan atau menu. Layout awal membagi layar menjadi area antrean dan area promo.
+1. **PIN Admin Outlet**: Mencegah salah tekan atau akses tidak sah ke panel kasir.
+2. **PIN Pemilik Global**: Dilengkapi scrypt hash & salt, cookie `HttpOnly`, `SameSite=Strict`.
+3. **Backup Legacy**: Seluruh halaman single-outlet lama di-backup di `*.single-outlet.bak.*`.
 
-## State antrean
+## Jalur Produksi & Hosting
 
-State tersimpan di `data/state.json`:
-
-- nomor aktif;
-- status pesanan;
-- waktu perubahan terakhir;
-- daftar produk dan snapshot item transaksi;
-- daftar pesanan beserta statusnya;
-- revisi state dan event panggilan terakhir.
-
-Penulisan memakai temporary file lalu rename agar file utama tidak tersimpan setengah. Refresh browser dan restart server membaca kembali state terakhir.
-
-## Sinkronisasi demo
-
-HP dan display membaca state dari server pada laptop. Admin mengubah state melalui REST API. Server mengirim snapshot terbaru melalui Server-Sent Events sehingga display berubah tanpa refresh manual. Saat SSE terputus, browser mencoba terhubung kembali dan UI menampilkan status koneksi.
-
-## Media promo
-
-Versi pertama merotasi kartu dari daftar menu aktif. Nomor antrean selalu menempati 34 persen layar. Aset gambar/video dan logo hanya ditambahkan setelah client memberikan file serta izin penggunaan.
-
-## Jalur produksi
-
-Kode demo harus dapat dipindahkan ke hosting tanpa menulis ulang halaman admin dan display. Produksi dapat mengganti penyimpanan lokal dengan database hosted. Domain, akun hosting, dan akses publik diputuskan setelah demo disetujui.
-
-## Batas arsitektur
-
-- Tidak ada aplikasi native.
-- Tidak ada integrasi POS.
-- Tidak ada multi-outlet.
-- Tidak ada akun pengguna kompleks.
-- Tidak ada mini PC sebagai syarat demo.
-- Fitur di luar batas ini memerlukan keputusan scope baru.
+Aplikasi siap dipasang di hosting (Node.js hosted). `data/outlets.json` dan file state JSON per outlet dapat dengan mudah diganti ke database (SQLite/PostgreSQL) untuk produksi jangka panjang.

@@ -1,0 +1,189 @@
+{
+  "businessDate": "2026-07-23",
+  "nextQueueNumber": 7,
+  "products": [
+    {
+      "id": "latte",
+      "name": "Latte",
+      "category": "Kopi",
+      "price": 20000,
+      "active": true
+    },
+    {
+      "id": "4d228c48-ac01-4a45-a6ed-9278c27e4f7d",
+      "name": "kopi",
+      "category": "Kopi",
+      "price": 10000,
+      "cost": 5000,
+      "active": true
+    }
+  ],
+  "orders": [
+    {
+      "id": "aee67295-6218-47ac-a637-cfde73312507",
+      "queueNumber": "001",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "QRIS",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 2,
+          "subtotal": 40000
+        }
+      ],
+      "total": 40000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 40000,
+      "status": "completed",
+      "createdAt": "2026-07-23T14:05:42.524Z",
+      "updatedAt": "2026-07-23T14:13:28.086Z"
+    },
+    {
+      "id": "001c07b2-7cd3-40d7-80e0-617312fd7bbc",
+      "queueNumber": "002",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "QRIS",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 2,
+          "subtotal": 40000
+        }
+      ],
+      "total": 40000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 40000,
+      "status": "completed",
+      "createdAt": "2026-07-23T14:05:51.867Z",
+      "updatedAt": "2026-07-23T14:13:27.642Z"
+    },
+    {
+      "id": "21f18443-282f-40be-86cb-0f9914091ed0",
+      "queueNumber": "003",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "QRIS",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 2,
+          "subtotal": 40000
+        }
+      ],
+      "total": 40000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 40000,
+      "status": "completed",
+      "createdAt": "2026-07-23T14:06:09.664Z",
+      "updatedAt": "2026-07-23T14:13:27.433Z"
+    },
+    {
+      "id": "60ddb3f2-e5c2-4cc4-a2eb-65d8ea5d9ad6",
+      "queueNumber": "004",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "QRIS",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 2,
+          "subtotal": 40000
+        }
+      ],
+      "total": 40000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 40000,
+      "status": "completed",
+      "createdAt": "2026-07-23T14:09:09.998Z",
+      "updatedAt": "2026-07-23T14:13:27.194Z"
+    },
+    {
+      "id": "6394ff96-2d19-4137-81da-adc3e83c2ff2",
+      "queueNumber": "005",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "QRIS",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 2,
+          "subtotal": 40000
+        }
+      ],
+      "total": 40000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 40000,
+      "status": "ready",
+      "createdAt": "2026-07-23T14:14:53.638Z",
+      "updatedAt": "2026-07-23T14:14:53.677Z"
+    },
+    {
+      "id": "c9225f5d-d780-40a5-8c68-f7918d08011f",
+      "queueNumber": "006",
+      "businessDate": "2026-07-23",
+      "paymentMethod": "QRIS",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 2,
+          "subtotal": 40000
+        }
+      ],
+      "total": 40000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 40000,
+      "status": "ready",
+      "createdAt": "2026-07-23T14:24:30.331Z",
+      "updatedAt": "2026-07-23T14:24:30.369Z"
+    }
+  ],
+  "activeCall": {
+    "orderId": "c9225f5d-d780-40a5-8c68-f7918d08011f",
+    "queueNumber": "006",
+    "eventId": 12,
+    "calledAt": "2026-07-23T14:24:30.369Z"
+  },
+  "promoMedia": {
+    "type": "video",
+    "url": "/media/promo.mp4",
+    "filename": "promo.mp4",
+    "updatedAt": "2026-07-23T13:54:11.686Z"
+  },
+  "taxConfig": {
+    "enabled": false,
+    "label": "Pajak",
+    "rate": 10
+  },
+  "ownerPinHash": {
+    "salt": "957d73ef1498fac88199b2f2123d46ca",
+    "hash": "06408e7cbe1ce8e2a10e0612000e066cfc9acdb50d86cae1aee3dc7d22073ebd"
+  },
+  "revision": 28
+}
