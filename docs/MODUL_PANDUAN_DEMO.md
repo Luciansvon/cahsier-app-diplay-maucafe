@@ -85,7 +85,7 @@ Mari kita coba lakukan simulasi transaksi sederhana dari awal sampai selesai:
    * Buka layar HP Pemilik (`/owner`).
    * Anda dapat langsung melihat:
      * Penjualan Bersih dan Total Diterima
-     * Rincian Tunai vs QRIS dan pajak terkumpul
+     * Rincian penerimaan Tunai vs QRIS
      * Laba kotor berdasarkan HPP yang tersimpan
      * Grafik Penjualan & Riwayat Transaksi Terbaru
 

@@ -301,7 +301,6 @@ kecuali hanya pada profile development lokal yang jelas terpisah dari release.
 APK tidak boleh menentukan sendiri:
 
 - harga final;
-- pajak;
 - HPP;
 - role;
 - izin outlet;

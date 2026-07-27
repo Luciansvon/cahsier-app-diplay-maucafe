@@ -24,27 +24,24 @@ File ini menjadi catatan utama revisi MAUCAFE. Semua permintaan baru masuk ke fi
 | REV-008 | 24-26 Juli 2026 | Aplikasi Android/Capacitor dan perbaikan tombol Bayar melalui HTTP LAN HP. | `DONE` | Kontrak Android dan fallback `requestId` lulus automated test. Rincian checkout ada di `ERR-013`. |
 | REV-009 | 27 Juli 2026 | Operasional franchise: SQLite, Owner, Mitra, Karyawan, shift, kas, biaya, cup, laporan, master menu, playlist, backup, dan restore. | `DONE` | Seluruh modul tercakup automated test dan build web. Bug implementasi tercatat di `ERR-014` sampai `ERR-028`. |
 | REV-010 | 27 Juli 2026 | PIN harus unik di seluruh akun Owner, Admin, Mitra, dan Karyawan. | `DONE` | Pembuatan/rotasi PIN duplikat ditolak dan collision data lama fail closed. Rincian ada di `ERR-029`. |
-| REV-011 | 25 Juli 2026 | Status antrean menampilkan teks "Sedang dibuat/diproses" pada flow Kasir dan Display. | `SEBAGIAN` | Teks "Sedang dibuat" sudah ada di daftar Kasir. Belum ada implementasi dan bukti pada Display. |
-| REV-012 | 27 Juli 2026 | Ringkasan gabungan per Mitra dari seluruh outlet yang dikelolanya. | `BELUM` | Dashboard Mitra masih menampilkan ringkasan berdasarkan outlet yang dipilih. |
-| REV-013 | 27 Juli 2026 | Mitra terdaftar lebih dulu, lalu Mitra tersebut membuat atau mengajukan outlet baru miliknya. | `BELUM` | Outlet tidak boleh dibuat lebih dulu lalu ditugaskan ke Mitra. Flow yang diminta: Mitra terdaftar -> Mitra mengajukan outlet -> Owner menyetujui -> outlet aktif. Flow penugasan outlet lama ke Mitra tidak dipakai sebagai alur operasional klien. |
-| REV-014 | 27 Juli 2026 | Hapus seluruh perhitungan, pengaturan, label, dan laporan pajak. | `BELUM` | Source dan test masih memiliki konfigurasi serta perhitungan pajak. |
-| REV-015 | 27 Juli 2026 | Rapikan teks dan komponen Shift pada halaman Mitra dan Kasir agar pas di halaman. | `BELUM` | Dikerjakan terakhir setelah flow utama sistem proper. |
-| REV-016 | 27 Juli 2026 | Video promo harus tetap berjalan ketika suara panggilan antrean diputar. | `BELUM` | Browser membuktikan `announce()` memanggil `promoVideo.pause()` saat event panggilan masuk. Video hanya diputar kembali melalui callback suara, sehingga callback yang terlambat atau tidak terpanggil dapat membuat video tetap berhenti. Perbaikan yang dicatat: visual video tetap berjalan, hanya audio promo yang dimute selama suara panggilan, lalu status audio dikembalikan setelah suara selesai atau gagal. Dicatat sebagai `ERR-030`. |
+| REV-011 | 25 Juli 2026 | Status antrean menampilkan teks "Sedang dibuat/diproses" pada flow Kasir dan Display. | `DONE` | Display menerima seluruh nomor waiting aman, menampilkan enam nomor oldest-first per halaman, berotasi empat detik, dan membersihkannya saat stale. Rincian ada di `ERR-034` dan `ERR-038`. |
+| REV-012 | 27 Juli 2026 | Ringkasan gabungan per Mitra dari seluruh outlet yang dikelolanya. | `DONE` | Dashboard Mitra memakai agregat outlet miliknya. Dashboard Owner memiliki kartu Doni/Dedi per Mitra berisi finansial, transaksi, antrean aktif, saldo cup, pending outlet, drill-down outlet, serta kelompok outlet lama tanpa Mitra. Rincian ada di `ERR-032` dan `ERR-037`. |
+| REV-013 | 27 Juli 2026 | Mitra terdaftar lebih dulu, lalu Mitra tersebut membuat atau mengajukan outlet baru miliknya. | `DONE` | Flow assignment outlet lama dihapus. Flow aktif: Owner membuat Mitra -> Mitra mengajukan outlet -> Owner menyetujui -> outlet aktif. Rincian ada di `ERR-031`. |
+| REV-014 | 27 Juli 2026 | Hapus seluruh perhitungan, pengaturan, label, dan laporan pajak. | `DONE` | Pajak dihapus dari transaksi baru, API, UI, struk, ekspor, serta dokumentasi aktif. Field legacy diabaikan tanpa menghapus histori. Rincian ada di `ERR-033`. |
+| REV-015 | 27 Juli 2026 | Rapikan teks dan komponen Shift pada halaman Mitra dan Kasir agar pas di halaman. | `DONE` | Status dipecah menjadi tiga baris, wrap diperketat, tombol mobile utuh, dan QA browser tidak menemukan overflow horizontal. Rincian ada di `ERR-035`. |
+| REV-016 | 27 Juli 2026 | Video promo harus tetap berjalan ketika suara panggilan antrean diputar. | `DONE` | Panggilan tidak lagi pause/play video; hanya audio promo dimute sementara dan selalu dipulihkan. Playlist satu video juga berulang otomatis. Rincian ada di `ERR-030` dan `ERR-036`. |
+| REV-017 | 27 Juli 2026 | Display iklan tidak perlu fullscreen adaptif; pertahankan split antrean dan maksimalkan area iklan tanpa teks/dekorasi luar. | `DONE` | Display selalu split 34/66. Panel media full-bleed tanpa promo chrome, sedangkan active call dan `Sedang dibuat` tetap terlihat. Rincian ada di `ERR-038`. |
 
 ## Pemeriksaan terakhir
 
 Tanggal: 27 Juli 2026
 
-* `npm test`: `88/88` lulus, termasuk smoke test multi-outlet.
+* `npm test`: `93/93` lulus, termasuk smoke test multi-outlet.
 * `npm run build`: lulus.
-* Status `BELUM` tidak dianggap selesai walaupun test fitur lama tetap lulus.
+* Browser smoke Owner/Display lulus: agregat Doni/Dedi dan saldo cup tampil, drill-down tahan refresh SSE, split 34/66 tepat, rotasi waiting berjalan, dan video tidak pause saat panggilan.
+* Seluruh revisi aktif `REV-001` sampai `REV-017` berstatus `DONE`.
 * Detail error teknis tetap disimpan di `docs/ERROR_SOLUTIONS.md`; file ini hanya melacak revisi dan status pengerjaan.
 
 ## Urutan revisi berikutnya
 
-1. REV-013 - benahi flow Mitra membuat/mengajukan outlet baru miliknya.
-2. REV-012 - buat ringkasan gabungan seluruh outlet milik Mitra.
-3. REV-014 - hapus perhitungan pajak.
-4. REV-011 - lengkapi status pesanan sampai Display.
-5. REV-016 - pertahankan video tetap berjalan saat suara panggilan.
-6. REV-015 - rapikan layout Shift Mitra dan Kasir.
+Tidak ada revisi terbuka pada catatan ini.
