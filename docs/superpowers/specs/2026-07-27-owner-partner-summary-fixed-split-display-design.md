@@ -21,12 +21,14 @@ Total Diterima       Rp ...
 Profit Bersih        Rp ...
 Transaksi            ...
 Antrean Aktif        ...
+Saldo Cup            ...
 
 Dedi - 2 outlet aktif
 Total Diterima       Rp ...
 Profit Bersih        Rp ...
 Transaksi            ...
 Antrean Aktif        ...
+Saldo Cup            ...
 ```
 
 Nilai kartu Mitra adalah hasil penjumlahan seluruh outlet aktif dengan `partnerId` milik Mitra tersebut:
@@ -39,7 +41,8 @@ Nilai kartu Mitra adalah hasil penjumlahan seluruh outlet aktif dengan `partnerI
 - Profit Bersih;
 - transaksi;
 - penerimaan Tunai dan QRIS;
-- antrean aktif.
+- antrean aktif;
+- saldo cup gabungan.
 
 Outlet `pending` tidak ikut nilai finansial. Jumlah outlet pending ditampilkan terpisah pada kartu Mitra.
 
@@ -60,6 +63,7 @@ Endpoint ditambah:
 - `unassignedSummary`: ringkasan gabungan outlet aktif tanpa Mitra jika ada.
 
 Agregasi dilakukan server-side agar frontend tidak menjadi source of truth laporan.
+Setiap ringkasan membawa `inventory.balance` sebagai saldo cup gabungan outlet yang masuk kelompok tersebut.
 
 ## Aturan Order dan Antrean
 
@@ -119,8 +123,8 @@ Jika belum ada media aktif, panel memakai latar netral tanpa mengambil data menu
 
 Automated test harus membuktikan:
 
-1. Doni dengan tiga outlet menerima satu `partnerSummary` yang menjumlahkan ketiga outlet.
-2. Dedi dengan dua outlet menerima agregat terpisah.
+1. Doni dengan tiga outlet menerima satu `partnerSummary` yang menjumlahkan finansial dan saldo cup ketiga outlet.
+2. Dedi dengan dua outlet menerima agregat finansial dan saldo cup yang terpisah.
 3. Outlet pending tidak masuk nilai finansial.
 4. Outlet aktif tanpa Mitra tetap muncul pada `unassignedSummary` dan total jaringan.
 5. Buyer A satu item mendapat nomor 1 dan Buyer B tiga item mendapat nomor 2.
