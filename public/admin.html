@@ -4,19 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Panel Kasir Kedai Kopi</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="./base.css">
+  <link rel="stylesheet" href="./admin.css">
 </head>
 <body class="admin-page">
   <section id="admin-login" class="lock-screen">
     <div class="lock-card">
       <div class="brand-logo-badge large">M</div>
-      <p class="eyebrow" id="admin-login-outlet-tag">MAUCAFE KIOSK</p>
+      <p class="eyebrow" id="admin-login-outlet-tag">MAUCAFE OUTLET</p>
       <h1 id="admin-login-title">Panel Kasir Outlet</h1>
       <p class="lock-subtitle">Masukkan PIN Admin Kasir untuk membuka panel kasir.</p>
 
       <form id="admin-pin-form">
+        <label class="modal-field">
+          <span>Username karyawan (kosongkan untuk Admin lama)</span>
+          <input id="admin-username-input" name="username" type="text" autocomplete="username" placeholder="kasir.pagi">
+        </label>
         <div class="pin-display">
-          <input id="admin-pin-input" type="password" readonly maxlength="8" placeholder="••••" aria-label="PIN Admin">
+          <input id="admin-pin-input" name="current-password" type="password" readonly maxlength="8" autocomplete="current-password" placeholder="••••" aria-label="PIN Admin">
         </div>
         <div id="admin-pin-error" class="pin-error" role="alert" hidden></div>
         <div class="keypad">
@@ -42,44 +47,60 @@
       <div class="brand-title-group">
         <div class="brand-logo-badge">M</div>
         <div>
-          <p class="eyebrow" id="admin-outlet-badge">MAUCAFE KIOSK</p>
+          <p class="eyebrow" id="admin-outlet-badge">MAUCAFE OUTLET</p>
           <h1 id="admin-outlet-name">Kedai Kopi</h1>
         </div>
       </div>
       <div class="header-actions">
         <span id="connection-status" class="connection offline" role="status">Menghubungkan...</span>
-        <button id="admin-logout-btn" class="ghost small-btn">Kunci</button>
+        <button id="admin-logout-btn" type="button" class="ghost small-btn">Kunci</button>
       </div>
     </header>
 
     <div id="error-banner" class="error-banner" role="alert" hidden></div>
 
     <nav class="tab-bar" aria-label="Menu admin">
-      <button class="tab active" data-tab="cashier-panel">Kasir</button>
-      <button class="tab" data-tab="orders-panel">Pesanan <span id="order-count" class="count">0</span></button>
-      <button class="tab" data-tab="media-panel">Media TV</button>
+      <button type="button" class="tab active" data-tab="cashier-panel">Kasir</button>
+      <button type="button" class="tab" data-tab="orders-panel">Pesanan <span id="order-count" class="count">0</span></button>
+      <button type="button" class="tab" data-tab="operations-panel">Shift</button>
+      <button type="button" class="tab" data-tab="media-panel">Media TV</button>
     </nav>
 
     <main>
       <section id="cashier-panel" class="panel active">
-        <div class="section-heading">
+        <div class="section-heading cashier-heading">
           <div><p class="eyebrow">BUAT PESANAN</p><h2>Pilih menu</h2></div>
         </div>
-        <div id="product-grid" class="product-grid"></div>
-        <aside class="cart-card">
-          <div class="section-heading"><h2>Keranjang</h2></div>
-          <div id="cart-items" class="cart-items"><p class="empty-state">Belum ada menu dipilih.</p></div>
-          <div class="cart-totals">
-            <div class="cart-total-row"><span>Subtotal</span><strong id="cart-subtotal">Rp0</strong></div>
-            <div id="cart-tax-row" class="cart-total-row" hidden><span id="cart-tax-label">Pajak 10%</span><strong id="cart-tax-amount">Rp0</strong></div>
-            <div class="cart-total-row cart-grand-total"><span>Total</span><strong id="cart-total">Rp0</strong></div>
-          </div>
-          <div class="payment-grid" role="group" aria-label="Metode pembayaran">
-            <button class="payment active" data-payment="cash">Tunai</button>
-            <button class="payment" data-payment="QRIS">QRIS</button>
-          </div>
-          <button id="checkout" class="primary action-button" disabled>Sudah Dibayar</button>
-        </aside>
+        <div class="cashier-toolbar">
+          <label class="menu-search">
+            <span class="sr-only">Cari menu</span>
+            <input id="product-search" type="search" placeholder="Cari menu..." autocomplete="off">
+          </label>
+          <div id="category-filters" class="category-filters" role="group" aria-label="Filter kategori"></div>
+        </div>
+        <div class="cashier-layout">
+          <section class="product-browser" aria-label="Daftar menu">
+            <div id="product-grid" class="product-grid"></div>
+          </section>
+          <aside class="cart-card">
+            <div class="section-heading"><div><p class="eyebrow">PESANAN</p><h2>Keranjang</h2></div></div>
+            <div id="cart-items" class="cart-items"><p class="empty-state">Belum ada menu dipilih.</p></div>
+            <div class="cart-totals">
+              <div class="cart-total-row"><span>Subtotal</span><strong id="cart-subtotal">Rp0</strong></div>
+              <div id="cart-tax-row" class="cart-total-row" hidden><span id="cart-tax-label">Pajak 10%</span><strong id="cart-tax-amount">Rp0</strong></div>
+              <div class="cart-total-row cart-grand-total"><span>Total</span><strong id="cart-total">Rp0</strong></div>
+            </div>
+            <div class="payment-grid" role="group" aria-label="Metode pembayaran">
+              <button type="button" class="payment active" data-payment="cash">Tunai</button>
+              <button type="button" class="payment" data-payment="QRIS">QRIS</button>
+            </div>
+            <button id="checkout" type="button" class="primary action-button" disabled>Bayar</button>
+          </aside>
+        </div>
+        <div id="mobile-cart-bar" class="mobile-cart-bar" hidden>
+          <div><strong id="mobile-cart-count">0 item</strong><span id="mobile-cart-total">Rp0</span></div>
+          <button id="mobile-cart-open" type="button" class="primary">Lihat Keranjang</button>
+        </div>
       </section>
 
       <section id="orders-panel" class="panel">
@@ -89,19 +110,77 @@
         <div id="orders-list" class="orders-list"></div>
       </section>
 
+      <section id="operations-panel" class="panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">OPERASIONAL HARI INI</p><h2>Shift, kas, biaya, dan cup</h2></div>
+        </div>
+        <div id="cashier-daily-summary" class="daily-summary-grid">
+          <article class="card"><span>Penjualan Bersih</span><strong id="cashier-daily-revenue">Rp0</strong></article>
+          <article class="card"><span>Tunai</span><strong id="cashier-daily-cash">Rp0</strong></article>
+          <article class="card"><span>QRIS</span><strong id="cashier-daily-qris">Rp0</strong></article>
+          <article class="card"><span>Transaksi</span><strong id="cashier-daily-transactions">0</strong></article>
+        </div>
+        <div class="operations-grid">
+          <section class="card">
+            <h3>Status Shift</h3>
+            <p id="current-shift-label">Belum ada shift aktif.</p>
+            <form id="open-shift-form">
+              <label class="modal-field"><span>Nama shift</span><input id="shift-label" value="Pagi" maxlength="60" required></label>
+              <label class="modal-field"><span>Saldo awal kas</span><input id="shift-opening-cash" type="number" min="0" value="0" required></label>
+              <button type="submit" class="primary action-button">Buka Shift</button>
+            </form>
+            <form id="close-shift-form" hidden>
+              <label class="modal-field"><span>Kas fisik saat tutup</span><input id="shift-actual-cash" type="number" min="0" required></label>
+              <label class="modal-field"><span>Alasan selisih (jika ada)</span><input id="shift-close-reason" maxlength="300"></label>
+              <button type="submit" class="primary action-button">Tutup Shift</button>
+            </form>
+          </section>
+          <section class="card">
+            <h3>Catat Kas / Biaya</h3>
+            <form id="operation-entry-form">
+              <label class="modal-field"><span>Jenis</span><select id="operation-type"><option value="expense">Biaya operasional</option><option value="cash-in">Kas masuk</option><option value="cash-out">Kas keluar</option><option value="deposit">Setoran</option></select></label>
+              <label class="modal-field"><span>Nominal</span><input id="operation-amount" type="number" min="0" required></label>
+              <label class="modal-field"><span>Kategori</span><input id="operation-category" maxlength="80" required></label>
+              <label class="modal-field"><span>Keterangan</span><input id="operation-note" maxlength="300" required></label>
+              <button type="submit" class="primary action-button">Simpan Catatan</button>
+            </form>
+          </section>
+          <section class="card">
+            <h3>Catat Cup</h3>
+            <form id="inventory-entry-form">
+              <label class="modal-field"><span>Jenis</span><select id="inventory-type"><option value="received">Cup diterima</option><option value="used">Cup dipakai</option><option value="damaged">Cup rusak</option><option value="lost">Cup hilang</option><option value="returned">Cup dikembalikan</option><option value="adjustment">Penyesuaian</option></select></label>
+              <label class="modal-field"><span>Jumlah</span><input id="inventory-quantity" type="number" required></label>
+              <label class="modal-field"><span>Alasan</span><input id="inventory-reason" maxlength="300"></label>
+              <button type="submit" class="primary action-button">Simpan Cup</button>
+            </form>
+          </section>
+        </div>
+      </section>
+
       <section id="media-panel" class="panel">
         <div class="section-heading">
           <div><p class="eyebrow">IKLAN & PROMOSI TV</p><h2>Ganti Media Display</h2></div>
         </div>
         <div class="card media-settings-card">
-          <p class="form-help">Pilih file video (.mp4/.webm) atau foto (.jpg/.png) dari galeri HP/Komputer untuk ditayangkan di layar TV antrean.</p>
+          <p class="form-help">Playlist menerima video MP4 maksimal 120 detik dan foto JPG/PNG/WebP.</p>
           <div class="current-media-badge" id="admin-current-media">
             Media aktif: <strong>Loading...</strong>
           </div>
           <form id="admin-media-form" class="media-upload-form">
             <div class="form-field">
               <label for="admin-media-file">File Video atau Foto Baru:</label>
-              <input type="file" id="admin-media-file" accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" required>
+              <input type="file" id="admin-media-file" accept="video/mp4,image/jpeg,image/png,image/webp" required>
+            </div>
+            <div class="form-field">
+              <label for="admin-image-duration">Durasi foto (detik):</label>
+              <input id="admin-image-duration" type="number" min="3" max="60" value="8">
+            </div>
+            <div class="form-field">
+              <label for="admin-media-fit">Tampilan di TV:</label>
+              <select id="admin-media-fit">
+                <option value="cover">Isi layar / crop</option>
+                <option value="contain">Tampilkan penuh</option>
+              </select>
             </div>
             <div class="button-group">
               <button type="submit" id="admin-upload-btn" class="primary action-button">Unggah & Tayangkan di TV</button>
@@ -109,12 +188,43 @@
             </div>
           </form>
           <div id="admin-media-status" class="media-status-msg" hidden></div>
+          <div id="admin-media-playlist" class="media-playlist"></div>
         </div>
       </section>
     </main>
 
+    <dialog id="cancel-dialog" class="cancel-dialog">
+      <form id="cancel-order-form" method="dialog" class="cancel-form">
+        <div class="modal-header">
+          <div><p class="eyebrow">APPROVAL PEMBATALAN</p><h2 id="cancel-dialog-title">Batalkan pesanan</h2></div>
+          <button id="cancel-dialog-close" type="button" class="close-icon-btn" aria-label="Tutup">×</button>
+        </div>
+        <label class="modal-field">
+          <span>Alasan pembatalan</span>
+          <select id="cancel-reason" required>
+            <option value="">Pilih alasan</option>
+            <option value="Salah input pesanan">Salah input pesanan</option>
+            <option value="Pelanggan membatalkan">Pelanggan membatalkan</option>
+            <option value="Pembayaran gagal">Pembayaran gagal</option>
+            <option value="Produk tidak tersedia">Produk tidak tersedia</option>
+          </select>
+        </label>
+        <label class="modal-field">
+          <span>PIN Pemilik / Supervisor</span>
+          <input id="cancel-owner-pin" name="owner-approval-password" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" required>
+        </label>
+        <p class="form-help">Pesanan tidak dihapus. Status, alasan, dan approval tetap disimpan untuk audit.</p>
+        <div id="cancel-order-error" class="modal-error" role="alert" hidden></div>
+        <div class="modal-actions">
+          <button id="cancel-dialog-back" type="button" class="ghost">Kembali</button>
+          <button type="submit" class="danger-btn action-button">Konfirmasi Pembatalan</button>
+        </div>
+      </form>
+    </dialog>
+
     <div id="success-toast" class="toast" role="status" hidden></div>
   </div>
-  <script type="module" src="/admin.js"></script>
+  <script src="./runtime-config.js"></script>
+  <script type="module" src="./admin.js"></script>
 </body>
 </html>

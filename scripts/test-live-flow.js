@@ -1,115 +1,119 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
 import { createQueueServer } from '../src/server.js';
 import { createInitialState } from '../src/queue.js';
+import { createPinHash } from '../src/security.js';
+
+function cookiePair(response) {
+  return (response.headers.get('set-cookie') ?? '').split(';')[0];
+}
 
 async function runLiveFlowTest() {
-  console.log('🚀 Memulai Pengujian Otomatis Alur Multi-Outlet...\n');
+  console.log('🚀 Memulai smoke test alur multi-outlet terisolasi...');
+  const root = await mkdtemp(join(tmpdir(), 'maucafe-live-flow-'));
+  const dataDir = join(root, 'data');
+  const publicDir = join(root, 'public');
+  await mkdir(dataDir);
+  await mkdir(publicDir);
+
+  const outlets = [
+    ['maucafe-alunalun', 'Maucafe Alun-Alun Jepara', 'Alun-Alun Jepara', '1111'],
+    ['maucafe-tahunan', 'Maucafe Tahunan', 'Tahunan', '2222'],
+    ['maucafe-bandengan', 'Maucafe Pantai Bandengan', 'Bandengan', '3333'],
+    ['maucafe-kartini', 'Maucafe Pantai Kartini', 'Kartini', '4444'],
+    ['maucafe-pecangaan', 'Maucafe Pecangaan', 'Pecangaan', '5555'],
+  ].map(([id, name, address, adminPin]) => ({ id, name, address, adminPin }));
+  await writeFile(join(dataDir, 'outlets.json'), JSON.stringify(outlets, null, 2));
+  await writeFile(join(dataDir, 'security.json'), JSON.stringify({ ownerPinHash: createPinHash('1234') }, null, 2));
 
   const initialState = createInitialState({
     products: [
       { id: 'latte', name: 'Kopi Susu', category: 'Kopi', price: 18000, cost: 8000, active: true },
       { id: 'croissant', name: 'Croissant', category: 'Makanan', price: 17000, cost: 8000, active: true },
-      { id: 'espresso', name: 'Espresso', category: 'Kopi', price: 15000, cost: 7000, active: true },
     ],
   });
 
-  const app = await createQueueServer({ initialState });
-  await app.listen(0, '127.0.0.1');
-  const address = app.server.address();
-  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const app = await createQueueServer({ initialState, dataDir, publicDir });
+  try {
+    await app.listen(0, '127.0.0.1');
+    const { port } = app.server.address();
+    const baseUrl = `http://127.0.0.1:${port}`;
 
-  console.log(`✅ Server uji aktif di ${baseUrl}\n`);
+    const outletResponse = await fetch(`${baseUrl}/api/outlets`);
+    const outletData = await outletResponse.json();
+    assert.equal(outletData.outlets.length, 5);
 
-  // 1. Cek Daftar 5 Outlet
-  console.log('1️⃣ Memeriksa Daftar 5 Outlet...');
-  const resOutlets = await fetch(`${baseUrl}/api/outlets`);
-  const dataOutlets = await resOutlets.json();
-  console.log(`   - Jumlah outlet terdaftar: ${dataOutlets.outlets.length}`);
-  dataOutlets.outlets.forEach((o) => console.log(`     • ${o.name} (${o.address})`));
-  console.log('   ✅ Daftar 5 Outlet Valid!\n');
+    const publicState = await (await fetch(`${baseUrl}/api/outlet/maucafe-alunalun/state`)).json();
+    assert.equal(publicState.products[0].id, 'latte');
+    assert.equal('cost' in publicState.products[0], false);
+    assert.equal('orders' in publicState, false);
 
-  // Cek produk yang ada di state outlet BSD
-  const resStateBSD = await fetch(`${baseUrl}/api/outlet/maucafe-bsd/state`);
-  const dataStateBSD = await resStateBSD.json();
-  const products = dataStateBSD.products || [];
+    const adminLogin = await fetch(`${baseUrl}/api/outlet/maucafe-alunalun/admin/login`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pin: '1111' }),
+    });
+    assert.equal(adminLogin.status, 200);
+    const bsdCookie = cookiePair(adminLogin);
+    const firstShift = await fetch(`${baseUrl}/api/outlet/maucafe-alunalun/shifts/open`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: bsdCookie },
+      body: JSON.stringify({ label: 'Pagi', openingCash: 0 }),
+    });
+    assert.equal(firstShift.status, 201);
 
-  // 2. Login Kasir Admin BSD
-  console.log('2️⃣ Kasir Maucafe BSD Login dengan PIN 1111...');
-  const resAdminLogin = await fetch(`${baseUrl}/api/outlet/maucafe-bsd/admin/login`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ pin: '1111' }),
-  });
-  console.log(`   - Status Login: ${resAdminLogin.ok ? 'BERHASIL' : 'GAGAL'}`);
-  console.log('   ✅ PIN Admin Outlet BSD Berhasil Diverifikasi!\n');
+    const orderResponse = await fetch(`${baseUrl}/api/outlet/maucafe-alunalun/orders`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: bsdCookie },
+      body: JSON.stringify({ items: [{ productId: 'latte', quantity: 2 }], paymentMethod: 'QRIS' }),
+    });
+    assert.equal(orderResponse.status, 201);
+    const orderData = await orderResponse.json();
+    assert.equal(orderData.order.queueNumber, '1');
 
-  // 3. Kasir BSD Buat Pesanan
-  console.log('3️⃣ Kasir BSD Membuat Pesanan...');
-  const targetProduct = products[0] || { id: 'latte' };
-  const resOrderBSD = await fetch(`${baseUrl}/api/outlet/maucafe-bsd/orders`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      items: [{ productId: targetProduct.id, quantity: 2 }],
-      paymentMethod: 'QRIS',
-    }),
-  });
-  const dataOrderBSD = await resOrderBSD.json();
+    const callResponse = await fetch(`${baseUrl}/api/outlet/maucafe-alunalun/orders/${orderData.order.id}/call`, {
+      method: 'POST', headers: { 'content-type': 'application/json', cookie: bsdCookie }, body: '{}',
+    });
+    assert.equal(callResponse.status, 200);
+    assert.equal((await callResponse.json()).state.activeCall.queueNumber, '1');
 
-  if (!resOrderBSD.ok) {
-    console.error('ERROR Order BSD:', dataOrderBSD);
-    process.exit(1);
+    const pikLogin = await fetch(`${baseUrl}/api/outlet/maucafe-tahunan/admin/login`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pin: '2222' }),
+    });
+    assert.equal(pikLogin.status, 200);
+    const pikCookie = cookiePair(pikLogin);
+    const secondShift = await fetch(`${baseUrl}/api/outlet/maucafe-tahunan/shifts/open`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: pikCookie },
+      body: JSON.stringify({ label: 'Pagi', openingCash: 0 }),
+    });
+    assert.equal(secondShift.status, 201);
+    const pikOrder = await fetch(`${baseUrl}/api/outlet/maucafe-tahunan/orders`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: pikCookie },
+      body: JSON.stringify({ items: [{ productId: 'latte', quantity: 1 }], paymentMethod: 'cash' }),
+    });
+    assert.equal(pikOrder.status, 201);
+    assert.equal((await pikOrder.json()).order.queueNumber, '1');
+
+    const ownerLogin = await fetch(`${baseUrl}/api/owner/login`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pin: '1234' }),
+    });
+    assert.equal(ownerLogin.status, 200);
+    const ownerCookie = cookiePair(ownerLogin);
+    const summaryResponse = await fetch(`${baseUrl}/api/owner/multi-summary`, { headers: { cookie: ownerCookie } });
+    assert.equal(summaryResponse.status, 200);
+    const summary = await summaryResponse.json();
+    assert.equal(summary.summaries.length, 5);
+    assert.equal(summary.grandTotals.salesCount, 2);
+    assert.equal(summary.grandTotals.received, 54000);
+
+    console.log('✅ Smoke test multi-outlet lulus: auth, isolasi outlet, antrean, display state, dan owner summary bekerja.');
+  } finally {
+    await app.close().catch(() => {});
+    await rm(root, { recursive: true, force: true });
   }
-
-  console.log(`   - Nomor Antrean BSD: ${dataOrderBSD.order.queueNumber}`);
-  console.log(`   - Total Transaksi BSD: Rp ${dataOrderBSD.order.grandTotal.toLocaleString('id-ID')}`);
-  console.log('   ✅ Pesanan Outlet BSD Berhasil Diinput!\n');
-
-  // 4. Panggil Antrean di Display BSD
-  console.log('4️⃣ Panggil Nomor Antrean 001 di Layar TV BSD...');
-  const resCallBSD = await fetch(`${baseUrl}/api/outlet/maucafe-bsd/orders/${dataOrderBSD.order.id}/call`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: '{}',
-  });
-  const dataCallBSD = await resCallBSD.json();
-  console.log(`   - Nomor Aktif di TV BSD: ${dataCallBSD.state.activeCall.queueNumber}`);
-  console.log('   ✅ Layar TV BSD Menampilkan Panggilan 001!\n');
-
-  // 5. Kasir PIK Buat Pesanan (Pembuktian Terisolasi)
-  console.log('5️⃣ Kasir Maucafe PIK Membuat Pesanan...');
-  const resOrderPIK = await fetch(`${baseUrl}/api/outlet/maucafe-pik/orders`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      items: [{ productId: targetProduct.id, quantity: 1 }],
-      paymentMethod: 'cash',
-    }),
-  });
-  const dataOrderPIK = await resOrderPIK.json();
-  console.log(`   - Nomor Antrean PIK: ${dataOrderPIK.order.queueNumber}`);
-  console.log(`   - Total Transaksi PIK: Rp ${dataOrderPIK.order.grandTotal.toLocaleString('id-ID')}`);
-  console.log('   ✅ Pesanan PIK Berjalan Mandiri Tanpa Bentrok!\n');
-
-  // 6. Owner Login & Cek Summary 5 Outlet
-  console.log('6️⃣ Owner Login dengan PIN 1234 & Cek Summary 5 Outlet...');
-  const resOwnerLogin = await fetch(`${baseUrl}/api/owner/login`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ pin: '1234' }),
-  });
-  const cookie = resOwnerLogin.headers.get('set-cookie');
-
-  const resMultiSummary = await fetch(`${baseUrl}/api/owner/multi-summary`, {
-    headers: { cookie },
-  });
-  const dataSummary = await resMultiSummary.json();
-  console.log(`   - Total Omzet Gabungan 5 Outlet: Rp ${dataSummary.grandTotals.revenue.toLocaleString('id-ID')}`);
-  console.log(`   - Total Keuntungan Gabungan: Rp ${dataSummary.grandTotals.margin.toLocaleString('id-ID')}`);
-  console.log(`   - Total Transaksi Selesai/Aktif: ${dataSummary.grandTotals.salesCount} transaksi`);
-  console.log('   ✅ Dashboard Owner Menampilkan Data Semua Outlet dengan Akurat!\n');
-
-  await app.close();
-  console.log('🎉 PENGUJIAN SELESAI: SEMUA SISTEM MULTI-OUTLET BERJALAN 100% SEMPURNA!');
 }
 
-runLiveFlowTest().catch(console.error);
+await runLiveFlowTest();

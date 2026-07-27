@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MAUCAFE Operations</title>
+  <link rel="stylesheet" href="./base.css">
+  <link rel="stylesheet" href="./launcher.css">
+</head>
+<body class="launcher-page">
+  <main class="launcher-shell">
+    <section class="launcher-card">
+      <div class="brand-logo-badge large">M</div>
+      <p class="eyebrow">MAUCAFE OPERATIONS</p>
+      <h1>Pilih akses</h1>
+      <p class="lock-subtitle">Kasir untuk transaksi, Mitra untuk operasional outlet, Owner untuk seluruh jaringan.</p>
+
+      <form id="server-form" hidden>
+        <label class="modal-field">
+          <span>Alamat server HTTPS</span>
+          <input id="server-url" type="url" inputmode="url" placeholder="https://server.maucafe.id" required>
+        </label>
+        <button class="primary" type="submit">Sambungkan Server</button>
+      </form>
+
+      <div id="launcher-actions" hidden>
+        <label class="modal-field">
+          <span>Outlet kasir</span>
+          <select id="launcher-outlet"></select>
+        </label>
+        <button id="open-cashier" class="primary" type="button">Buka Kasir</button>
+        <a class="ghost launcher-owner-link" href="./partner.html">Buka Mitra</a>
+        <a class="ghost launcher-owner-link" href="./owner.html">Buka Owner</a>
+      </div>
+
+      <p id="launcher-status" class="connection offline" role="status">Memeriksa server...</p>
+    </section>
+  </main>
+  <script src="./runtime-config.js"></script>
+  <script type="module" src="./launcher.js"></script>
+</body>
+</html>

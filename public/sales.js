@@ -1,15 +1,25 @@
-export function summarizeSales(orders = [], businessDate) {
+export function summarizeSales(orders = [], businessDate, {
+  operationalEntries = [],
+  shiftId = null,
+} = {}) {
   const transactions = orders
-    .filter((order) => order.businessDate === businessDate)
+    .filter((order) => (
+      order.businessDate === businessDate
+      && (!shiftId || order.shiftId === shiftId)
+    ))
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  const counted = transactions.filter((order) => order.status !== 'cancelled');
+  const counted = transactions.filter((order) => (
+    !['cancelled', 'expired'].includes(order.status)
+    && order.paymentStatus !== 'void'
+  ));
   const paymentTotals = { cash: 0, QRIS: 0 };
   const products = new Map();
   let totalCost = 0;
   let totalTax = 0;
 
   for (const order of counted) {
-    paymentTotals[order.paymentMethod] = (paymentTotals[order.paymentMethod] ?? 0) + (order.grandTotal ?? order.total);
+    const paymentMethod = order.paymentMethod === 'qris' ? 'QRIS' : order.paymentMethod;
+    paymentTotals[paymentMethod] = (paymentTotals[paymentMethod] ?? 0) + (order.grandTotal ?? order.total);
     totalTax += order.taxAmount ?? 0;
     const orderId = order.id || order.queueNumber || order.createdAt;
 
@@ -20,7 +30,7 @@ export function summarizeSales(orders = [], businessDate) {
         productId: item.productId,
         productName: item.productName,
         category: item.category || 'Lainnya',
-        unitPrice: item.price ?? (item.quantity > 0 ? Math.round(item.subtotal / item.quantity) : 0),
+        unitPrice: item.unitPrice ?? item.price ?? (item.quantity > 0 ? Math.round(item.subtotal / item.quantity) : 0),
         quantity: 0,
         revenue: 0,
         cost: 0,
@@ -35,6 +45,13 @@ export function summarizeSales(orders = [], businessDate) {
   }
 
   const revenue = counted.reduce((sum, order) => sum + order.total, 0);
+  const operatingExpenses = operationalEntries
+    .filter((entry) => (
+      entry.type === 'expense'
+      && entry.businessDate === businessDate
+      && (!shiftId || entry.shiftId === shiftId)
+    ))
+    .reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
   const productList = [...products.values()]
     .map((p) => {
       const transactionCount = p.orders.size;
@@ -59,6 +76,8 @@ export function summarizeSales(orders = [], businessDate) {
     revenue,
     totalCost,
     margin: revenue - totalCost,
+    operatingExpenses,
+    netProfit: revenue - totalCost - operatingExpenses,
     totalTax,
     grandRevenue: revenue + totalTax,
     transactionCount: counted.length,
@@ -67,4 +86,3 @@ export function summarizeSales(orders = [], businessDate) {
     transactions,
   };
 }
-

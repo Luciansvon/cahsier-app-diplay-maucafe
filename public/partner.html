@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Panel Mitra - MAUCAFE</title>
+  <link rel="stylesheet" href="./base.css">
+  <link rel="stylesheet" href="./partner.css">
+</head>
+<body class="partner-page">
+  <section id="partner-login" class="lock-screen">
+    <div class="lock-card">
+      <div class="brand-logo-badge large">M</div>
+      <p class="eyebrow">MAUCAFE PARTNER</p>
+      <h1>Panel Mitra</h1>
+      <form id="partner-login-form">
+        <label class="modal-field"><span>Username</span><input id="partner-username" name="username" autocomplete="username" required></label>
+        <label class="modal-field"><span>PIN</span><input id="partner-pin" name="current-password" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" required></label>
+        <button class="primary" type="submit">Masuk</button>
+      </form>
+      <p id="partner-login-error" class="modal-error" role="alert" hidden></p>
+    </div>
+  </section>
+
+  <div id="partner-dashboard" hidden>
+    <header class="partner-header">
+      <div class="brand-title-group"><div class="brand-logo-badge">M</div><div><p class="eyebrow">MAUCAFE PARTNER</p><h1 id="partner-name">Panel Mitra</h1></div></div>
+      <div class="partner-header-actions"><span id="partner-connection" class="connection offline">Memuat...</span><button id="partner-logout" class="ghost small-btn">Keluar</button></div>
+    </header>
+    <div id="partner-error" class="error-banner" role="alert" hidden></div>
+    <main class="partner-main">
+      <section class="partner-toolbar card">
+        <label class="modal-field"><span>Outlet aktif</span><select id="partner-outlet-select"></select></label>
+        <button id="partner-refresh" class="ghost small-btn" type="button">Muat ulang</button>
+      </section>
+
+      <section id="partner-metrics" class="partner-metrics">
+        <article class="card"><span>Penjualan Bersih</span><strong id="partner-revenue">Rp0</strong></article>
+        <article class="card"><span>Total Diterima</span><strong id="partner-received">Rp0</strong></article>
+        <article class="card"><span>Laba Kotor</span><strong id="partner-gross-profit">Rp0</strong></article>
+        <article class="card"><span>Biaya Operasional</span><strong id="partner-expenses">Rp0</strong></article>
+        <article class="card"><span>Profit Bersih</span><strong id="partner-net-profit">Rp0</strong></article>
+        <article class="card"><span>Stok Cup</span><strong id="partner-cup-balance">0</strong></article>
+      </section>
+
+      <nav class="partner-tabs" aria-label="Menu Mitra">
+        <button class="partner-tab active" data-tab="partner-operations">Operasional</button>
+        <button class="partner-tab" data-tab="partner-employees">Karyawan</button>
+        <button class="partner-tab" data-tab="partner-media">Media TV</button>
+        <button class="partner-tab" data-tab="partner-outlets">Outlet</button>
+      </nav>
+
+      <section id="partner-operations" class="partner-panel active">
+        <div class="partner-grid">
+          <article class="card">
+            <h2>Shift aktif</h2>
+            <p id="partner-current-shift">Belum ada shift aktif.</p>
+            <form id="partner-force-close-form" hidden>
+              <label class="modal-field"><span>Kas fisik</span><input id="partner-actual-cash" type="number" min="0" required></label>
+              <label class="modal-field"><span>Alasan force close</span><input id="partner-close-reason" maxlength="300" required></label>
+              <button class="danger-btn" type="submit">Force Close Shift</button>
+            </form>
+          </article>
+          <article class="card">
+            <h2>Kas / biaya</h2>
+            <form id="partner-operation-form">
+              <label class="modal-field"><span>Jenis</span><select id="partner-operation-type"><option value="expense">Biaya operasional</option><option value="cash-in">Kas masuk</option><option value="cash-out">Kas keluar</option><option value="deposit">Setoran</option></select></label>
+              <label class="modal-field"><span>Nominal</span><input id="partner-operation-amount" type="number" min="0" required></label>
+              <label class="modal-field"><span>Kategori</span><input id="partner-operation-category" maxlength="80" required></label>
+              <label class="modal-field"><span>Keterangan</span><input id="partner-operation-note" maxlength="300" required></label>
+              <button class="primary" type="submit">Simpan</button>
+            </form>
+          </article>
+          <article class="card">
+            <h2>Stok cup</h2>
+            <form id="partner-inventory-form">
+              <label class="modal-field"><span>Jenis</span><select id="partner-inventory-type"><option value="received">Diterima</option><option value="used">Dipakai</option><option value="damaged">Rusak</option><option value="lost">Hilang</option><option value="returned">Dikembalikan</option><option value="adjustment">Penyesuaian</option></select></label>
+              <label class="modal-field"><span>Jumlah</span><input id="partner-inventory-quantity" type="number" required></label>
+              <label class="modal-field"><span>Alasan</span><input id="partner-inventory-reason" maxlength="300"></label>
+              <button class="primary" type="submit">Simpan</button>
+            </form>
+          </article>
+        </div>
+        <button id="partner-export" class="ghost" type="button">Unduh Laporan Excel Outlet</button>
+      </section>
+
+      <section id="partner-employees" class="partner-panel">
+        <article class="card">
+          <h2>Tambah karyawan</h2>
+          <form id="partner-employee-form" class="form-grid">
+            <label class="modal-field"><span>Nama</span><input id="employee-name" maxlength="120" required></label>
+            <label class="modal-field"><span>Username</span><input id="employee-username" name="username" maxlength="40" autocomplete="username" required></label>
+            <label class="modal-field"><span>PIN</span><input id="employee-pin" name="new-employee-password" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" required></label>
+            <button class="primary" type="submit">Buat Akun Karyawan</button>
+          </form>
+        </article>
+        <div id="partner-employee-list" class="partner-list"></div>
+      </section>
+
+      <section id="partner-media" class="partner-panel">
+        <article class="card">
+          <h2>Playlist TV</h2>
+          <form id="partner-media-form">
+            <label class="modal-field"><span>Video MP4 / foto</span><input id="partner-media-file" type="file" accept="video/mp4,image/jpeg,image/png,image/webp" required></label>
+            <label class="modal-field"><span>Tampilan</span><select id="partner-media-fit"><option value="cover">Isi layar / crop</option><option value="contain">Tampilkan penuh</option></select></label>
+            <label class="modal-field"><span>Durasi foto (detik)</span><input id="partner-image-duration" type="number" min="3" max="60" value="8"></label>
+            <button class="primary" type="submit">Unggah ke Playlist</button>
+          </form>
+          <div id="partner-media-list" class="partner-list"></div>
+        </article>
+      </section>
+
+      <section id="partner-outlets" class="partner-panel">
+        <article class="card">
+          <h2>Ajukan outlet baru</h2>
+          <form id="partner-outlet-form">
+            <label class="modal-field"><span>Nama outlet</span><input id="proposal-name" maxlength="120" required></label>
+            <label class="modal-field"><span>Alamat</span><textarea id="proposal-address" maxlength="240" required></textarea></label>
+            <button class="primary" type="submit">Kirim Pengajuan</button>
+          </form>
+        </article>
+        <div id="partner-outlet-list" class="partner-list"></div>
+      </section>
+    </main>
+    <div id="partner-toast" class="toast" role="status" hidden></div>
+  </div>
+  <script src="./runtime-config.js"></script>
+  <script type="module" src="./partner.js"></script>
+</body>
+</html>

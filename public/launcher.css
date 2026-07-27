@@ -1,0 +1,12 @@
+.launcher-page { min-height: 100dvh; }
+.launcher-shell {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: max(22px, var(--safe-top)) max(14px, var(--safe-right)) max(22px, var(--safe-bottom)) max(14px, var(--safe-left));
+}
+.launcher-card { width: min(100%, 430px); text-align: center; }
+.launcher-card h1 { margin: 12px 0 8px; font: 900 clamp(30px, 8vw, 42px)/1.05 Georgia, serif; }
+#server-form, #launcher-actions { display: grid; gap: 11px; margin-top: 20px; }
+.launcher-owner-link { width: 100%; }
+#launcher-status { margin: 18px auto 0; }

@@ -7,9 +7,14 @@ dist/
 !.env.example
 *.log
 data/state.json
+data/maucafe.sqlite*
+backups/
+public/media/uploaded-*
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 .superpowers/
 .worktrees/
+.playwright-cli/
+output/playwright/

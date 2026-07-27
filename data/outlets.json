@@ -1,32 +1,63 @@
 [
   {
-    "id": "maucafe-bsd",
-    "name": "Maucafe BSD",
-    "address": "Ruko Commercial BSD City",
-    "adminPin": "1111"
+    "id": "maucafe-alunalun",
+    "name": "Maucafe Alun-Alun Jepara",
+    "address": "Jl. Pemuda No. 1, Alun-Alun Jepara",
+    "adminPinHash": {
+      "algorithm": "scrypt",
+      "salt": "e6378e54a02b6982a183de5e528100c3",
+      "hash": "595858a6a297ed8ff093e94b899202a3947e050ea0abf0a72ddb9ecdd90b9ae4"
+    },
+    "status": "active",
+    "partnerId": "partner-9a46fb28-5317-44f7-9713-71edae5734c3",
+    "assignedAt": "2026-07-27T02:27:36.972Z"
   },
   {
-    "id": "maucafe-pik",
-    "name": "Maucafe PIK",
-    "address": "Ruko Crown Golf PIK",
-    "adminPin": "1111"
+    "id": "maucafe-tahunan",
+    "name": "Maucafe Tahunan",
+    "address": "Jl. Raya Soekarno-Hatta, Tahunan, Jepara",
+    "adminPinHash": {
+      "algorithm": "scrypt",
+      "salt": "6e0cf0630986ab01369a30c14da39c2c",
+      "hash": "5bf47082c19a55405e8a760a92863817e356866c73553773f78414277da3cfd6"
+    },
+    "status": "active",
+    "partnerId": null
   },
   {
-    "id": "maucafe-bintaro",
-    "name": "Maucafe Bintaro",
-    "address": "Bintaro Jaya Sector 7",
-    "adminPin": "1111"
+    "id": "maucafe-bandengan",
+    "name": "Maucafe Pantai Bandengan",
+    "address": "Jl. Pantai Bandengan, Jepara",
+    "adminPinHash": {
+      "algorithm": "scrypt",
+      "salt": "a2a3e2058ce47fd1017cfcbcbcc740af",
+      "hash": "ade7aa1c7b34f585c26c69892cfc5d718bb7462084a6f3d38dc3028126429e5d"
+    },
+    "status": "active",
+    "partnerId": null
   },
   {
-    "id": "maucafe-kemang",
-    "name": "Maucafe Kemang",
-    "address": "Jl. Kemang Raya No. 12",
-    "adminPin": "1111"
+    "id": "maucafe-kartini",
+    "name": "Maucafe Pantai Kartini",
+    "address": "Jl. Kartini No. 45, Jepara",
+    "adminPinHash": {
+      "algorithm": "scrypt",
+      "salt": "c3d121b27cfa9122c8f9e587d82cf99e",
+      "hash": "8ecd9141fe2589739319fb0801727c17b5509758006d60a82d399cdf3c8e89a6"
+    },
+    "status": "active",
+    "partnerId": null
   },
   {
-    "id": "maucafe-depok",
-    "name": "Maucafe Depok",
-    "address": "Jl. Margonda Raya No. 88",
-    "adminPin": "1111"
+    "id": "maucafe-pecangaan",
+    "name": "Maucafe Pecangaan",
+    "address": "Jl. Raya Kudus-Jepara, Pecangaan, Jepara",
+    "adminPinHash": {
+      "algorithm": "scrypt",
+      "salt": "d3eea847acefafe45153d73424de592a",
+      "hash": "4d9530ace15bb7982fa0b5c0e1ca62951232c05fba89a94c35c546f359a382d3"
+    },
+    "status": "active",
+    "partnerId": null
   }
 ]

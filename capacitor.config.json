@@ -1,0 +1,10 @@
+{
+  "appId": "id.maucafe.operations",
+  "appName": "MAUCAFE Operations",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false,
+    "loggingBehavior": "production"
+  }
+}

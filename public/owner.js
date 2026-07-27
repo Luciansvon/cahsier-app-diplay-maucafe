@@ -1,13 +1,20 @@
-import { summarizeSales } from '/sales.js';
+import { apiDownload, apiRequest } from './api-client.js';
+import { apiUrl, isNativeApp } from './app-config.js';
+import { clearNativeSession, getNativeSession, setNativeSession } from './native-session.js';
+import { setupNativeShell } from './native-shell.js';
+import { summarizeSales } from './sales.js';
 
 let outletsList = [];
 let selectedOutletId = 'all'; // 'all' atau outletId spesifik
 let multiSummaryData = null;
+let franchiseData = null;
 let state = { businessDate: null, products: [], orders: [], activeCall: null, promoMedia: null };
 let allOutletsOrders = [];
+let allOperationalEntries = [];
 let selectedOutletName = 'Semua Outlet';
 let reportDate = null;
 let events = null;
+let pollingTimer = null;
 let isConnected = false;
 
 const $ = (selector) => document.querySelector(selector);
@@ -95,9 +102,11 @@ function toast(message) {
 function openLogin(message = '') {
   events?.close();
   events = null;
+  window.clearInterval(pollingTimer);
+  pollingTimer = null;
   $('#owner-dashboard').hidden = true;
-  $('#change-pin-modal').hidden = true;
-  $('#menu-mgmt-modal').hidden = true;
+  if ($('#change-pin-modal')?.open) $('#change-pin-modal').close();
+  if ($('#menu-mgmt-modal')?.open) $('#menu-mgmt-modal').close();
   $('#owner-login').hidden = false;
   $('#pin-input').value = '';
   const errEl = $('#pin-error');
@@ -113,19 +122,17 @@ function openDashboard() {
 }
 
 async function request(path, options = {}, lockOnUnauthorized = true) {
-  const response = await fetch(path, {
-    ...options,
-    headers: options.body ? { 'content-type': 'application/json' } : undefined,
-  });
-  const payload = await response.json();
-  if (response.status === 401 && path !== '/api/owner/login' && lockOnUnauthorized) {
-    openLogin('Sesi berakhir, masukkan PIN lagi.');
+  try {
+    return await apiRequest(path, options);
+  } catch (error) {
+    if (error.status === 401 && !path.endsWith('/owner/login') && lockOnUnauthorized) {
+      clearNativeSession();
+      openLogin('Sesi berakhir, masukkan PIN lagi.');
+    }
+    throw error;
   }
-  if (!response.ok) throw new Error(payload.error || 'Permintaan gagal');
-  return payload;
 }
 
-// LOGIKA TAB SWAPPING
 document.querySelectorAll('.owner-tab').forEach((button) => {
   button.addEventListener('click', () => {
     document.querySelectorAll('.owner-tab, .owner-panel').forEach((node) => node.classList.remove('active'));
@@ -133,7 +140,6 @@ document.querySelectorAll('.owner-tab').forEach((button) => {
     const targetPanel = $(`#${button.dataset.tab}`);
     if (targetPanel) targetPanel.classList.add('active');
 
-    // Jika tab Laporan dibuka, pastikan laporan ter-render dengan baik
     if (button.dataset.tab === 'tab-reports') {
       renderReport();
     }
@@ -148,6 +154,7 @@ async function loadMultiSummary() {
     populateGlobalOutletDropdown(data.summaries);
     renderMultiSummary(data);
     openDashboard();
+    await loadFranchise();
 
     // Default tanggal laporan
     reportDate ||= todayJakartaDate();
@@ -165,34 +172,135 @@ async function loadMultiSummary() {
   }
 }
 
+async function loadFranchise() {
+  franchiseData = await request('/api/owner/franchise', {}, false);
+  renderFranchise();
+}
+
+function renderFranchise() {
+  if (!franchiseData) return;
+  const { registry, audit } = franchiseData;
+  const partnerList = $('#owner-partner-list');
+  partnerList?.replaceChildren();
+  for (const partner of registry.partners) {
+    const user = registry.users.find((candidate) => (
+      candidate.role === 'partner' && candidate.partnerId === partner.id
+    ));
+    const row = element('article', 'franchise-row');
+    const info = element('div');
+    info.append(
+      element('strong', '', partner.name),
+      element('small', '', `${user ? `@${user.username}` : 'Akun belum ada'} · ${partner.outletIds.length} outlet`),
+    );
+    row.append(info, element('span', 'status-pill', partner.active === false ? 'Nonaktif' : 'Aktif'));
+    partnerList?.append(row);
+  }
+  if (!registry.partners.length) partnerList?.append(element('p', 'empty-state', 'Belum ada Mitra.'));
+
+  const outletList = $('#owner-franchise-outlet-list');
+  outletList?.replaceChildren();
+  for (const outlet of registry.outlets) {
+    const row = element('article', 'franchise-row');
+    const info = element('div');
+    info.append(
+      element('strong', '', outlet.name),
+      element('small', '', `${outlet.address} · ${outlet.status === 'pending' ? 'Menunggu approval' : 'Aktif'}`),
+    );
+    const partnerSelect = element('select', 'outlet-dropdown');
+    const empty = element('option', '', 'Belum ditugaskan');
+    empty.value = '';
+    partnerSelect.append(empty);
+    for (const partner of registry.partners.filter((candidate) => candidate.active !== false)) {
+      const option = element('option', '', partner.name);
+      option.value = partner.id;
+      partnerSelect.append(option);
+    }
+    partnerSelect.value = outlet.partnerId ?? '';
+    const assign = element('button', 'ghost small-btn', 'Simpan Mitra');
+    assign.type = 'button';
+    assign.disabled = !partnerSelect.value;
+    partnerSelect.addEventListener('change', () => { assign.disabled = !partnerSelect.value; });
+    assign.addEventListener('click', async () => {
+      await request(`/api/owner/outlets/${outlet.id}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ partnerId: partnerSelect.value }),
+      });
+      toast('Penugasan outlet disimpan');
+      await loadFranchise();
+    });
+    row.append(info, partnerSelect, assign);
+    if (outlet.status === 'pending') {
+      const approve = element('button', 'primary small-btn', 'Setujui');
+      approve.type = 'button';
+      approve.addEventListener('click', async () => {
+        await request(`/api/owner/outlets/${outlet.id}/approve`, { method: 'POST', body: '{}' });
+        toast('Outlet disetujui dan langsung aktif');
+        await loadMultiSummary();
+      });
+      row.append(approve);
+    }
+    outletList?.append(row);
+  }
+
+  const auditList = $('#owner-audit-list');
+  auditList?.replaceChildren();
+  for (const entry of audit.slice(0, 20)) {
+    const row = element('article', 'franchise-row');
+    const info = element('div');
+    info.append(
+      element('strong', '', entry.action),
+      element('small', '', `${entry.actorType}:${entry.actorId}${entry.outletId ? ` · ${entry.outletId}` : ''}`),
+    );
+    row.append(info, element('time', '', formatTime(entry.createdAt)));
+    auditList?.append(row);
+  }
+}
+
 async function loadAllOutletsOrders() {
   try {
     const data = await request('/api/owner/all-orders', {}, false);
     allOutletsOrders = data.orders || [];
+    allOperationalEntries = data.operationalEntries || [];
     renderReport();
   } catch (err) {
-    console.error('Gagal memuat pesanan semua outlet:', err);
+    showError(err.message || 'Gagal memuat pesanan semua outlet.');
   }
 }
 
 function populateGlobalOutletDropdown(summaries) {
   const dropdown = $('#global-outlet-select');
-  if (!dropdown) return;
-  dropdown.replaceChildren();
+  if (dropdown) {
+    dropdown.replaceChildren();
 
-  const optAll = document.createElement('option');
-  optAll.value = 'all';
-  optAll.textContent = 'Semua Outlet (Ringkasan Gabungan 5 Outlet)';
-  dropdown.append(optAll);
+    const optAll = document.createElement('option');
+    optAll.value = 'all';
+    optAll.textContent = 'Semua Outlet (Ringkasan Gabungan)';
+    dropdown.append(optAll);
 
-  summaries.forEach((s) => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.textContent = s.name;
-    dropdown.append(opt);
+    summaries.forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      dropdown.append(opt);
+    });
+
+    dropdown.value = selectedOutletId;
+  }
+
+  document.querySelectorAll('.section-outlet-select').forEach((secDropdown) => {
+    secDropdown.replaceChildren();
+    summaries.forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      secDropdown.append(opt);
+    });
+    if (selectedOutletId !== 'all') {
+      secDropdown.value = selectedOutletId;
+    } else if (summaries.length) {
+      secDropdown.value = summaries[0].id;
+    }
   });
-
-  dropdown.value = selectedOutletId;
 }
 
 $('#global-outlet-select')?.addEventListener('change', (e) => {
@@ -204,14 +312,25 @@ $('#global-outlet-select')?.addEventListener('change', (e) => {
   }
 });
 
+document.querySelectorAll('.section-outlet-select').forEach((secDropdown) => {
+  secDropdown.addEventListener('change', (e) => {
+    const val = e.target.value;
+    if (val) {
+      selectOutlet(val);
+    }
+  });
+});
+
 function renderMultiSummary(data) {
   const grandRev = $('#grand-revenue');
   const grandMar = $('#grand-margin');
+  const grandNet = $('#grand-net-profit');
   const grandSales = $('#grand-sales-count');
   const grandActive = $('#grand-active-count');
 
-  if (grandRev) grandRev.textContent = rupiah(data.grandTotals.revenue);
+  if (grandRev) grandRev.textContent = rupiah(data.grandTotals.received ?? data.grandTotals.revenue);
   if (grandMar) grandMar.textContent = rupiah(data.grandTotals.margin);
+  if (grandNet) grandNet.textContent = rupiah(data.grandTotals.netProfit);
   if (grandSales) grandSales.textContent = String(data.grandTotals.salesCount);
   if (grandActive) grandActive.textContent = String(data.grandTotals.activeCount);
 
@@ -228,16 +347,16 @@ function renderMultiSummary(data) {
     const metrics = element('div', 'outlet-card-metrics');
 
     const m1 = element('div', 'outlet-card-metric');
-    m1.append(element('span', '', 'Omzet'), element('strong', 'text-success', rupiah(summary.revenue)));
+    m1.append(element('span', '', 'Total Diterima'), element('strong', 'text-success', rupiah(summary.received ?? (summary.revenue + (summary.tax || 0)))));
 
     const m2 = element('div', 'outlet-card-metric');
-    m2.append(element('span', '', 'Keuntungan'), element('strong', 'text-profit', rupiah(summary.margin)));
+    m2.append(element('span', '', 'Profit Bersih'), element('strong', 'text-profit', rupiah(summary.netProfit)));
 
     const m3 = element('div', 'outlet-card-metric');
     m3.append(element('span', '', 'Transaksi'), element('strong', '', String(summary.salesCount)));
 
     const m4 = element('div', 'outlet-card-metric');
-    m4.append(element('span', '', 'Antrean Active'), element('strong', '', String(summary.activeCount)));
+    m4.append(element('span', '', 'Antrean Aktif'), element('strong', '', String(summary.activeCount)));
 
     metrics.append(m1, m2, m3, m4);
 
@@ -246,15 +365,7 @@ function renderMultiSummary(data) {
     const detailBtn = element('button', 'primary small-btn', 'Lihat Laporan & Kelola');
     detailBtn.addEventListener('click', () => selectOutlet(summary.id));
 
-    const kasirLink = element('a', 'ghost small-btn', 'Buka Kasir');
-    kasirLink.href = `/outlet/${summary.id}/admin`;
-    kasirLink.target = '_blank';
-
-    const tvLink = element('a', 'ghost small-btn', 'Buka TV');
-    tvLink.href = `/outlet/${summary.id}/display`;
-    tvLink.target = '_blank';
-
-    actions.append(detailBtn, kasirLink, tvLink);
+    actions.append(detailBtn);
 
     card.append(top, metrics, actions);
     grid.append(card);
@@ -263,8 +374,9 @@ function renderMultiSummary(data) {
 
 async function selectOutlet(outletId) {
   selectedOutletId = outletId;
-  const dropdown = $('#global-outlet-select');
-  if (dropdown) dropdown.value = outletId;
+  document.querySelectorAll('#global-outlet-select, .section-outlet-select').forEach((d) => {
+    d.value = outletId;
+  });
 
   const targetInfo = outletsList.find((o) => o.id === outletId);
   selectedOutletName = targetInfo ? targetInfo.name : outletId;
@@ -289,7 +401,7 @@ async function selectOutlet(outletId) {
   const dangerSingleConfirmLabel = $('#danger-single-confirm-label');
   if (dangerSingleConfirmLabel) dangerSingleConfirmLabel.textContent = `Ketik HAPUS untuk membuka tombol penghapusan ${selectedOutletName}`;
   const resetBtn = $('#reset-queue-owner');
-  if (resetBtn) resetBtn.textContent = `Reset antrean ${selectedOutletName} ke 001`;
+  if (resetBtn) resetBtn.textContent = `Reset antrean ${selectedOutletName} ke 1`;
   const clearBtn = $('#clear-sales-owner');
   if (clearBtn) clearBtn.textContent = `Hapus penjualan ${selectedOutletName}`;
 
@@ -313,13 +425,14 @@ function showAllOutletsView() {
 
   const eyebrow = $('#owner-eyebrow-tag');
   const title = $('#owner-header-title');
-  if (eyebrow) eyebrow.textContent = 'MAUCAFE KIOSK MULTI-OUTLET';
-  if (title) title.textContent = 'Ringkasan 5 Outlet';
+  if (eyebrow) eyebrow.textContent = 'MAUCAFE MULTI-OUTLET';
+  if (title) title.textContent = outletsList.length ? `Ringkasan ${outletsList.length} Outlet` : 'Ringkasan Semua Outlet';
 
+  connectEvents();
   loadMultiSummary();
 }
 
-async function syncSingleOutletState() {
+async function syncSingleOutletState(connectLive = true) {
   try {
     const payload = await request(`/api/outlet/${selectedOutletId}/owner/state`);
     state = payload.state;
@@ -334,8 +447,8 @@ async function syncSingleOutletState() {
     renderReport();
     renderMediaStatus();
     renderTaxConfig();
-    if ($('#menu-mgmt-modal') && !$('#menu-mgmt-modal').hidden) renderMenuMgmtList();
-    connectEvents();
+    if ($('#menu-mgmt-modal')?.open) renderMenuMgmtList();
+    if (connectLive) connectEvents();
     setConnection(true, payload.updatedAt);
   } catch (error) {
     showError(error.message);
@@ -346,12 +459,56 @@ function renderMediaStatus() {
   const currentMediaNode = $('#owner-current-media');
   if (!currentMediaNode) return;
   const promoMedia = state.promoMedia;
+  currentMediaNode.replaceChildren(document.createTextNode('Media aktif: '));
+  const strong = element('strong');
   if (!promoMedia || !promoMedia.filename) {
-    currentMediaNode.innerHTML = 'Media aktif: <strong>Video Bawaan (promo.mp4)</strong>';
+    strong.textContent = 'Video Bawaan (promo.mp4)';
   } else {
     const typeLabel = promoMedia.type === 'image' ? 'Foto' : 'Video';
-    currentMediaNode.innerHTML = `Media aktif: <strong>${typeLabel} (${promoMedia.filename})</strong>`;
+    strong.textContent = `${typeLabel} (${promoMedia.filename})`;
   }
+  currentMediaNode.append(strong);
+  const fitSelect = $('#owner-media-fit');
+  if (fitSelect && promoMedia?.fit) fitSelect.value = promoMedia.fit;
+  const playlistNode = $('#owner-media-playlist');
+  if (!playlistNode) return;
+  playlistNode.replaceChildren();
+  const items = state.mediaPlaylist ?? [];
+  if (!items.length) {
+    playlistNode.append(element('p', 'empty-state', 'Playlist kosong. Video bawaan dipakai.'));
+    return;
+  }
+  items.forEach((item, index) => {
+    const row = element('div', 'media-playlist-item');
+    row.append(element('span', '', String(index + 1)), element('strong', '', item.filename || item.url));
+    const up = element('button', 'ghost small-btn', '↑');
+    const down = element('button', 'ghost small-btn', '↓');
+    const remove = element('button', 'danger-btn small-btn', 'Hapus');
+    up.type = down.type = remove.type = 'button';
+    up.disabled = index === 0;
+    down.disabled = index === items.length - 1;
+    const move = async (offset) => {
+      const orderedIds = items.map((candidate) => candidate.id);
+      [orderedIds[index], orderedIds[index + offset]] = [orderedIds[index + offset], orderedIds[index]];
+      await request(`/api/outlet/${selectedOutletId}/media/playlist/order`, {
+        method: 'PATCH',
+        body: JSON.stringify({ orderedIds }),
+      });
+      await syncSingleOutletState();
+    };
+    up.addEventListener('click', () => move(-1).catch((error) => showError(error.message)));
+    down.addEventListener('click', () => move(1).catch((error) => showError(error.message)));
+    remove.addEventListener('click', async () => {
+      try {
+        await request(`/api/outlet/${selectedOutletId}/media/playlist/${item.id}`, { method: 'DELETE' });
+        await syncSingleOutletState();
+      } catch (error) {
+        showError(error.message);
+      }
+    });
+    row.append(up, down, remove);
+    playlistNode.append(row);
+  });
 }
 
 const statusLabel = {
@@ -383,12 +540,17 @@ function transactionRow(order) {
 }
 
 function renderSummary() {
-  const summary = summarizeSales(state.orders, state.businessDate || todayJakartaDate());
+  const summary = summarizeSales(state.orders, state.businessDate || todayJakartaDate(), {
+    operationalEntries: state.operationalEntries ?? [],
+  });
   $('#owner-revenue').textContent = rupiah(summary.revenue);
+  if ($('#owner-received')) $('#owner-received').textContent = rupiah(summary.grandRevenue);
   $('#owner-cash').textContent = rupiah(summary.paymentTotals.cash);
   $('#owner-qris').textContent = rupiah(summary.paymentTotals.QRIS);
   $('#owner-cost').textContent = rupiah(summary.totalCost);
   $('#owner-margin').textContent = rupiah(summary.margin);
+  $('#owner-operating-expenses').textContent = rupiah(summary.operatingExpenses);
+  $('#owner-net-profit').textContent = rupiah(summary.netProfit);
   $('#owner-sales-count').textContent = String(summary.transactionCount);
   $('#owner-active-count').textContent = String((state.orders || []).filter((order) => ['waiting', 'ready'].includes(order.status)).length);
 
@@ -413,24 +575,35 @@ function renderSummary() {
   }
 }
 
-function exportExcel() {
+async function exportExcel() {
   reportDate ||= todayJakartaDate();
   if (selectedOutletId === 'all') {
     const exportUrl = `/api/owner/export-sales-all?date=${encodeURIComponent(reportDate)}`;
-    window.location.href = exportUrl;
-    toast('Laporan Excel Gabungan Semua Outlet berhasil diunduh!');
+    await apiDownload(exportUrl, `Laporan_Gabungan_${reportDate}.xls`);
+    toast('Laporan gabungan berhasil diunduh.');
     return;
   }
 
-  const summary = summarizeSales(state.orders, reportDate);
+  const summary = summarizeSales(state.orders, reportDate, {
+    operationalEntries: state.operationalEntries ?? [],
+  });
   if (!summary.products || !summary.products.length) {
     toast('Tidak ada data penjualan untuk diunduh pada tanggal ini.');
     return;
   }
 
   const exportUrl = `/api/outlet/${selectedOutletId}/owner/export-sales?date=${encodeURIComponent(reportDate)}`;
-  window.location.href = exportUrl;
-  toast(`Laporan Excel ${selectedOutletName} berhasil diunduh!`);
+  await apiDownload(exportUrl, `Laporan_${selectedOutletId}_${reportDate}.xls`);
+  toast(`Laporan ${selectedOutletName} berhasil diunduh.`);
+}
+
+async function handleExportExcel() {
+  clearError();
+  try {
+    await exportExcel();
+  } catch (error) {
+    showError(error.message);
+  }
 }
 
 function renderReport() {
@@ -439,14 +612,23 @@ function renderReport() {
   if (dateInput && !dateInput.value) dateInput.value = reportDate;
 
   const ordersToSummarize = selectedOutletId === 'all' ? allOutletsOrders : (state.orders || []);
-  const summary = summarizeSales(ordersToSummarize, reportDate);
+  const summary = summarizeSales(ordersToSummarize, reportDate, {
+    operationalEntries: selectedOutletId === 'all' ? allOperationalEntries : state.operationalEntries ?? [],
+  });
+  $('#report-revenue').textContent = rupiah(summary.revenue);
+  $('#report-tax').textContent = rupiah(summary.totalTax);
+  $('#report-received').textContent = rupiah(summary.grandRevenue);
+  $('#report-cost').textContent = rupiah(summary.totalCost);
+  $('#report-gross-profit').textContent = rupiah(summary.margin);
+  $('#report-expenses').textContent = rupiah(summary.operatingExpenses);
+  $('#report-net-profit').textContent = rupiah(summary.netProfit);
 
   const reportProdTitle = $('#report-products-title');
   const reportTrxTitle = $('#report-transactions-title');
 
   if (selectedOutletId === 'all') {
-    if (reportProdTitle) reportProdTitle.textContent = 'Laporan Penjualan Per Produk (Gabungan 5 Outlet)';
-    if (reportTrxTitle) reportTrxTitle.textContent = 'Riwayat Transaksi Lengkap (Gabungan 5 Outlet)';
+    if (reportProdTitle) reportProdTitle.textContent = 'Laporan Penjualan Per Produk (Gabungan Semua Outlet)';
+    if (reportTrxTitle) reportTrxTitle.textContent = 'Riwayat Transaksi Lengkap (Gabungan Semua Outlet)';
   } else {
     if (reportProdTitle) reportProdTitle.textContent = `Laporan Penjualan Per Produk - ${selectedOutletName}`;
     if (reportTrxTitle) reportTrxTitle.textContent = `Riwayat Transaksi Lengkap - ${selectedOutletName}`;
@@ -462,19 +644,10 @@ function renderReport() {
     const tableWrapper = element('div', 'report-table-wrapper');
     const table = element('table', 'report-table');
     const thead = element('thead');
-    thead.innerHTML = `
-      <tr>
-        <th>No</th>
-        <th>Nama Produk</th>
-        <th>Kategori</th>
-        <th>Harga Jual</th>
-        <th>Qty Terjual</th>
-        <th>Total Revenue</th>
-        <th>Jml Trx</th>
-        <th>Rata-rata Qty/Trx</th>
-        <th>Total Profit</th>
-      </tr>
-    `;
+    const headRow = element('tr');
+    ['No', 'Nama Produk', 'Kategori', 'Harga Jual', 'Qty Terjual', 'Penjualan Bersih', 'Transaksi', 'Rata-rata Qty', 'Laba Kotor']
+      .forEach((label) => headRow.append(element('th', '', label)));
+    thead.append(headRow);
     const tbody = element('tbody');
     let sumQty = 0;
     let sumRevenue = 0;
@@ -486,35 +659,41 @@ function renderReport() {
       sumProfit += prod.margin;
 
       const tr = element('tr');
-      tr.innerHTML = `
-        <td class="text-center">${idx + 1}</td>
-        <td class="font-bold">${prod.productName}</td>
-        <td><span class="category-badge">${prod.category || 'Lainnya'}</span></td>
-        <td class="text-right">${rupiah(prod.unitPrice)}</td>
-        <td class="text-center font-bold">${prod.quantity}</td>
-        <td class="text-right font-bold text-success">${rupiah(prod.revenue)}</td>
-        <td class="text-center">${prod.transactionCount}</td>
-        <td class="text-center">${prod.avgQtyPerTrx}</td>
-        <td class="text-right font-bold ${prod.margin >= 0 ? 'text-profit' : 'text-danger'}">${rupiah(prod.margin)}</td>
-      `;
+      tr.append(
+        element('td', 'text-center', String(idx + 1)),
+        element('td', 'font-bold', prod.productName),
+      );
+      const categoryCell = element('td');
+      categoryCell.append(element('span', 'category-badge', prod.category || 'Lainnya'));
+      tr.append(
+        categoryCell,
+        element('td', 'text-right', rupiah(prod.unitPrice)),
+        element('td', 'text-center font-bold', String(prod.quantity)),
+        element('td', 'text-right font-bold text-success', rupiah(prod.revenue)),
+        element('td', 'text-center', String(prod.transactionCount)),
+        element('td', 'text-center', String(prod.avgQtyPerTrx)),
+        element('td', `text-right font-bold ${prod.margin >= 0 ? 'text-profit' : 'text-danger'}`, rupiah(prod.margin)),
+      );
       tbody.append(tr);
     });
 
     const tfoot = element('tfoot');
-    tfoot.innerHTML = `
-      <tr>
-        <td colspan="4" class="text-right font-bold">TOTAL GABUNGAN</td>
-        <td class="text-center font-bold">${sumQty}</td>
-        <td class="text-right font-bold text-success">${rupiah(sumRevenue)}</td>
-        <td class="text-center font-bold">${summary.transactionCount}</td>
-        <td></td>
-        <td class="text-right font-bold text-profit">${rupiah(sumProfit)}</td>
-      </tr>
-    `;
+    const footRow = element('tr');
+    const totalLabel = element('td', 'text-right font-bold', 'TOTAL');
+    totalLabel.colSpan = 4;
+    footRow.append(
+      totalLabel,
+      element('td', 'text-center font-bold', String(sumQty)),
+      element('td', 'text-right font-bold text-success', rupiah(sumRevenue)),
+      element('td', 'text-center font-bold', String(summary.transactionCount)),
+      element('td', '', ''),
+      element('td', 'text-right font-bold text-profit', rupiah(sumProfit)),
+    );
+    tfoot.append(footRow);
 
     table.append(thead, tbody, tfoot);
     tableWrapper.append(table);
-    const hint = element('p', 'table-scroll-hint', '↔️ Geser tabel ke samping untuk melihat detail laporan');
+    const hint = element('p', 'table-scroll-hint', 'Geser tabel ke samping untuk melihat detail.');
     products.append(hint, tableWrapper);
   }
 
@@ -537,9 +716,16 @@ function renderTaxConfig() {
 }
 
 function connectEvents() {
-  if (selectedOutletId === 'all') return;
   events?.close();
-  events = new EventSource(`/api/outlet/${selectedOutletId}/events`);
+  events = null;
+  window.clearInterval(pollingTimer);
+  pollingTimer = null;
+  if (selectedOutletId === 'all') return;
+  if (isNativeApp) {
+    pollingTimer = window.setInterval(() => syncSingleOutletState(false), 5000);
+    return;
+  }
+  events = new EventSource(apiUrl(`/api/outlet/${selectedOutletId}/owner/events`));
   events.onmessage = (event) => {
     state = JSON.parse(event.data);
     renderSummary();
@@ -573,10 +759,11 @@ $('#pin-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const pin = $('#pin-input')?.value;
   try {
-    await request('/api/owner/login', {
+    const payload = await request(isNativeApp ? '/api/native/owner/login' : '/api/owner/login', {
       method: 'POST',
       body: JSON.stringify({ pin }),
     });
+    if (isNativeApp) setNativeSession(payload);
     await loadMultiSummary();
   } catch (error) {
     const pinErr = $('#pin-error');
@@ -591,8 +778,9 @@ $('#pin-form')?.addEventListener('submit', async (event) => {
 
 $('#logout-btn')?.addEventListener('click', async () => {
   try {
-    await request('/api/owner/logout', { method: 'POST', body: '{}' });
+    await request(isNativeApp ? '/api/native/logout' : '/api/owner/logout', { method: 'POST', body: '{}' });
   } finally {
+    clearNativeSession();
     openLogin();
   }
 });
@@ -607,7 +795,7 @@ $('#global-danger-confirmation')?.addEventListener('input', updateMutatingButton
 
 $('#clear-all-outlets-sales-btn')?.addEventListener('click', async () => {
   if ($('#global-danger-confirmation').value !== 'HAPUS SEMUA') return;
-  if (!window.confirm('Hapus SELURUH riwayat penjualan di SEMUA OUTLET (5 outlet)? Data tidak bisa dikembalikan.')) return;
+  if (!window.confirm('Hapus SELURUH riwayat penjualan di SEMUA OUTLET? Data tidak bisa dikembalikan.')) return;
   try {
     await request('/api/owner/clear-all-outlets-sales', { method: 'POST', body: JSON.stringify({}) });
     $('#global-danger-confirmation').value = '';
@@ -624,10 +812,10 @@ $('#reset-queue-owner')?.addEventListener('click', async () => {
     toast('Pilih outlet spesifik terlebih dahulu.');
     return;
   }
-  if (!window.confirm(`Reset antrean '${selectedOutletName}' ke 001?`)) return;
+  if (!window.confirm(`Reset antrean '${selectedOutletName}' ke 1?`)) return;
   try {
     await request(`/api/outlet/${selectedOutletId}/reset`, { method: 'POST', body: JSON.stringify({}) }, false);
-    toast(`Antrean ${selectedOutletName} dikembalikan ke 001.`);
+    toast(`Antrean ${selectedOutletName} dikembalikan ke 1.`);
     await syncSingleOutletState();
   } catch (error) {
     showError(error.message);
@@ -664,6 +852,44 @@ $('#clear-sales-owner')?.addEventListener('click', async () => {
     await syncSingleOutletState();
   } catch (error) {
     showError(error.message);
+  }
+});
+
+$('#admin-pin-config-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const status = $('#admin-pin-config-status');
+  if (selectedOutletId === 'all') {
+    status.textContent = 'Pilih outlet spesifik terlebih dahulu.';
+    status.className = 'media-status-msg error';
+    status.hidden = false;
+    return;
+  }
+  const newPin = $('#new-admin-pin').value.trim();
+  const confirmPin = $('#confirm-admin-pin').value.trim();
+  if (!/^\d{4,8}$/.test(newPin)) {
+    status.textContent = 'PIN Admin harus 4 hingga 8 angka.';
+    status.className = 'media-status-msg error';
+    status.hidden = false;
+    return;
+  }
+  if (newPin !== confirmPin) {
+    status.textContent = 'Konfirmasi PIN Admin tidak cocok.';
+    status.className = 'media-status-msg error';
+    status.hidden = false;
+    return;
+  }
+  try {
+    await request(`/api/outlet/${selectedOutletId}/admin/pin`, { method: 'POST', body: JSON.stringify({ newPin }) });
+    $('#new-admin-pin').value = '';
+    $('#confirm-admin-pin').value = '';
+    status.textContent = `PIN kasir ${selectedOutletName} berhasil diganti.`;
+    status.className = 'media-status-msg success';
+    status.hidden = false;
+    toast('PIN kasir outlet berhasil diganti');
+  } catch (error) {
+    status.textContent = error.message;
+    status.className = 'media-status-msg error';
+    status.hidden = false;
   }
 });
 
@@ -716,7 +942,12 @@ if (ownerMediaForm) {
       try {
         await request(`/api/outlet/${selectedOutletId}/media/upload`, {
           method: 'POST',
-          body: JSON.stringify({ filename: file.name, dataUrl: reader.result }),
+          body: JSON.stringify({
+            filename: file.name,
+            dataUrl: reader.result,
+            fit: $('#owner-media-fit')?.value || 'cover',
+            imageDurationSeconds: Number($('#owner-image-duration')?.value || 8),
+          }),
         });
         statusMsg.textContent = 'Media berhasil diunggah & langsung tayang di TV!';
         statusMsg.className = 'media-status-msg success';
@@ -745,11 +976,11 @@ function openChangePin() {
     $('#confirm-pin-input').value = '';
     const err = $('#change-pin-error');
     if (err) err.hidden = true;
-    changePinModal.hidden = false;
+    changePinModal.showModal();
   }
 }
 function closeChangePin() {
-  if (changePinModal) changePinModal.hidden = true;
+  if (changePinModal?.open) changePinModal.close();
 }
 $('#open-change-pin-modal')?.addEventListener('click', openChangePin);
 $('#close-change-pin-modal')?.addEventListener('click', closeChangePin);
@@ -771,20 +1002,20 @@ $('#change-pin-form')?.addEventListener('submit', async (e) => {
     return;
   }
 
-  const outletTarget = selectedOutletId === 'all' ? 'maucafe-bsd' : selectedOutletId;
+  const outletTarget = selectedOutletId === 'all' ? 'maucafe-alunalun' : selectedOutletId;
   try {
     await request(`/api/outlet/${outletTarget}/owner/pin`, {
       method: 'POST',
       body: JSON.stringify({ currentPin, newPin }),
     });
-    toast('PIN Pemilik berhasil diubah!');
+    clearNativeSession();
     closeChangePin();
+    openLogin('PIN berhasil diubah. Masuk kembali dengan PIN baru.');
   } catch (err) {
     if (errDiv) { errDiv.textContent = err.message || 'Gagal mengubah PIN'; errDiv.hidden = false; }
   }
 });
 
-// MODAL KELOLA MENU KEDAI
 const menuMgmtModal = $('#menu-mgmt-modal');
 
 function populateMenuModalOutletDropdown() {
@@ -799,7 +1030,7 @@ function populateMenuModalOutletDropdown() {
     dropdown.append(opt);
   });
 
-  const currentVal = selectedOutletId === 'all' ? (outletsList[0]?.id || 'maucafe-bsd') : selectedOutletId;
+  const currentVal = selectedOutletId === 'all' ? (outletsList[0]?.id || 'maucafe-alunalun') : selectedOutletId;
   dropdown.value = currentVal;
 }
 
@@ -811,14 +1042,14 @@ $('#menu-modal-outlet-select')?.addEventListener('change', async (e) => {
 function openMenuMgmt() {
   populateMenuModalOutletDropdown();
   if (selectedOutletId === 'all') {
-    selectOutlet(outletsList[0]?.id || 'maucafe-bsd');
+    selectOutlet(outletsList[0]?.id || 'maucafe-alunalun');
   } else {
     renderMenuMgmtList();
   }
-  if (menuMgmtModal) menuMgmtModal.hidden = false;
+  if (menuMgmtModal) menuMgmtModal.showModal();
 }
 function closeMenuMgmt() {
-  if (menuMgmtModal) menuMgmtModal.hidden = true;
+  if (menuMgmtModal?.open) menuMgmtModal.close();
   const err = $('#add-product-error');
   if (err) err.hidden = true;
 }
@@ -837,7 +1068,18 @@ function renderMenuMgmtList() {
     const card = element('div', 'menu-item-edit-card');
 
     const header = element('div', 'menu-item-header');
+    const thumbnail = element('span', 'menu-item-thumbnail');
+    if (prod.imageUrl) {
+      const image = element('img');
+      image.src = prod.imageUrl;
+      image.alt = '';
+      image.loading = 'lazy';
+      thumbnail.append(image);
+    } else {
+      thumbnail.append(element('span', '', prod.name.slice(0, 1).toUpperCase()));
+    }
     header.append(
+      thumbnail,
       element('strong', 'menu-item-name', prod.name),
       element('span', 'menu-item-category-badge', prod.category)
     );
@@ -858,7 +1100,16 @@ function renderMenuMgmtList() {
     costInput.value = prod.cost ?? 0;
     costLabel.append(costInput);
 
-    inputsRow.append(priceLabel, costLabel);
+    const cupLabel = element('label', 'input-compact');
+    cupLabel.append(element('span', '', 'Cup / item'));
+    const cupInput = element('input');
+    cupInput.type = 'number';
+    cupInput.min = '0';
+    cupInput.max = '10';
+    cupInput.value = prod.cupUsage ?? 0;
+    cupLabel.append(cupInput);
+
+    inputsRow.append(priceLabel, costLabel, cupLabel);
 
     const actionsRow = element('div', 'menu-item-actions-row');
 
@@ -879,10 +1130,11 @@ function renderMenuMgmtList() {
       try {
         const newPrice = Number(priceInput.value);
         const newCost = Number(costInput.value);
+        const cupUsage = Number(cupInput.value);
         const isActive = toggleCheckbox.checked;
         await request(`/api/outlet/${selectedOutletId}/products/${prod.id}`, {
           method: 'PATCH',
-          body: JSON.stringify({ price: newPrice, cost: newCost, active: isActive }),
+          body: JSON.stringify({ price: newPrice, cost: newCost, cupUsage, active: isActive }),
         });
         toast(`Menu ${prod.name} diperbarui!`);
         await syncSingleOutletState();
@@ -891,7 +1143,39 @@ function renderMenuMgmtList() {
       }
     });
 
-    actionsRow.append(toggleLabel, saveBtn);
+    const photoLabel = element('label', 'product-photo-control', 'Ganti foto');
+    const photoInput = element('input');
+    photoInput.type = 'file';
+    photoInput.accept = 'image/png,image/jpeg,image/webp';
+    photoInput.hidden = true;
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast('Foto maksimal 5MB');
+        photoInput.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          await request(`/api/outlet/${selectedOutletId}/products/${prod.id}/image`, {
+            method: 'POST',
+            body: JSON.stringify({ filename: file.name, dataUrl: reader.result }),
+          });
+          toast(`Foto ${prod.name} diperbarui`);
+          await syncSingleOutletState();
+          renderMenuMgmtList();
+        } catch (err) {
+          toast(err.message || 'Gagal mengunggah foto');
+        }
+      };
+      reader.onerror = () => toast('Gagal membaca foto');
+      reader.readAsDataURL(file);
+    });
+    photoLabel.append(photoInput);
+
+    actionsRow.append(toggleLabel, photoLabel, saveBtn);
     card.append(header, inputsRow, actionsRow);
     container.append(card);
   });
@@ -914,9 +1198,10 @@ if (addProductForm) {
       const category = $('#new-product-category').value;
       const price = Number($('#new-product-price').value);
       const cost = Number($('#new-product-cost').value);
+      const cupUsage = Number($('#new-product-cup-usage').value);
       await request(`/api/outlet/${selectedOutletId}/products`, {
         method: 'POST',
-        body: JSON.stringify({ name, category, price, cost }),
+        body: JSON.stringify({ name, category, price, cost, cupUsage }),
       });
       $('#new-product-name').value = '';
       $('#new-product-price').value = '';
@@ -933,7 +1218,53 @@ if (addProductForm) {
   });
 }
 
-$('#export-excel-btn')?.addEventListener('click', exportExcel);
+$('#export-excel-btn')?.addEventListener('click', handleExportExcel);
+
+$('#owner-partner-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    await request('/api/owner/partners', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: $('#owner-partner-name').value.trim(),
+        username: $('#owner-partner-username').value.trim(),
+        pin: $('#owner-partner-pin').value,
+      }),
+    });
+    event.currentTarget.reset();
+    toast('Akun Mitra dibuat');
+    await loadFranchise();
+  } catch (error) {
+    showError(error.message);
+  }
+});
+
+async function restoreOwnerSession() {
+  if (isNativeApp && !getNativeSession()?.token) return;
+  const session = await apiRequest('/api/owner/session');
+  if (session.authenticated) await loadMultiSummary();
+}
 
 // Inisialisasi
-loadMultiSummary();
+restoreOwnerSession().catch((error) => showError(error.message));
+window.setInterval(() => {
+  if (!$('#owner-dashboard')?.hidden && selectedOutletId === 'all') loadMultiSummary();
+}, isNativeApp ? 5000 : 15000);
+window.addEventListener('online', () => {
+  if ($('#owner-dashboard')?.hidden) return;
+  if (selectedOutletId === 'all') loadMultiSummary(); else syncSingleOutletState();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || $('#owner-dashboard')?.hidden) return;
+  if (selectedOutletId === 'all') loadMultiSummary(); else syncSingleOutletState();
+});
+window.addEventListener('maucafe:resume', () => {
+  if ($('#owner-dashboard')?.hidden) return;
+  if (selectedOutletId === 'all') loadMultiSummary(); else syncSingleOutletState();
+});
+window.addEventListener('maucafe:network', (event) => {
+  setConnection(event.detail.connected);
+  if (!event.detail.connected || $('#owner-dashboard')?.hidden) return;
+  if (selectedOutletId === 'all') loadMultiSummary(); else syncSingleOutletState();
+});
+setupNativeShell();

@@ -1,0 +1,30 @@
+{
+  "businessDate": null,
+  "nextQueueNumber": 1,
+  "products": [
+    {
+      "id": "latte",
+      "name": "Latte",
+      "category": "Kopi",
+      "price": 20000,
+      "active": true
+    }
+  ],
+  "orders": [],
+  "activeCall": null,
+  "promoMedia": {
+    "type": "video",
+    "url": "/media/promo.mp4",
+    "filename": "promo.mp4",
+    "updatedAt": "2026-07-23T13:54:11.686Z",
+    "fit": "cover"
+  },
+  "taxConfig": {
+    "enabled": false,
+    "label": "Pajak",
+    "rate": 10
+  },
+  "revision": 1,
+  "nextCallEventId": 1784860491808,
+  "schemaVersion": 2
+}

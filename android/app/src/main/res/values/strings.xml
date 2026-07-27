@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MAUCAFE Operations</string>
+    <string name="title_activity_main">MAUCAFE Operations</string>
+    <string name="package_name">id.maucafe.operations</string>
+    <string name="custom_url_scheme">id.maucafe.operations</string>
+</resources>
