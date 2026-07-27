@@ -1,6 +1,6 @@
 {
-  "businessDate": "2026-07-23",
-  "nextQueueNumber": 7,
+  "businessDate": "2026-07-24",
+  "nextQueueNumber": 2,
   "products": [
     {
       "id": "latte",
@@ -23,7 +23,8 @@
           "unitPrice": 20000,
           "unitCost": 0,
           "quantity": 1,
-          "subtotal": 20000
+          "subtotal": 20000,
+          "category": "Kopi"
         }
       ],
       "total": 20000,
@@ -47,7 +48,8 @@
           "unitPrice": 20000,
           "unitCost": 0,
           "quantity": 1,
-          "subtotal": 20000
+          "subtotal": 20000,
+          "category": "Kopi"
         }
       ],
       "total": 20000,
@@ -71,7 +73,8 @@
           "unitPrice": 20000,
           "unitCost": 0,
           "quantity": 1,
-          "subtotal": 20000
+          "subtotal": 20000,
+          "category": "Kopi"
         }
       ],
       "total": 20000,
@@ -95,7 +98,8 @@
           "unitPrice": 20000,
           "unitCost": 0,
           "quantity": 1,
-          "subtotal": 20000
+          "subtotal": 20000,
+          "category": "Kopi"
         }
       ],
       "total": 20000,
@@ -119,7 +123,8 @@
           "unitPrice": 20000,
           "unitCost": 0,
           "quantity": 1,
-          "subtotal": 20000
+          "subtotal": 20000,
+          "category": "Kopi"
         }
       ],
       "total": 20000,
@@ -143,7 +148,8 @@
           "unitPrice": 20000,
           "unitCost": 0,
           "quantity": 1,
-          "subtotal": 20000
+          "subtotal": 20000,
+          "category": "Kopi"
         }
       ],
       "total": 20000,
@@ -154,6 +160,31 @@
       "status": "waiting",
       "createdAt": "2026-07-23T14:24:30.376Z",
       "updatedAt": "2026-07-23T14:24:30.376Z"
+    },
+    {
+      "id": "31d5aa3b-a8f8-4ba6-ab3f-6e314d0301d8",
+      "queueNumber": "001",
+      "businessDate": "2026-07-24",
+      "paymentMethod": "cash",
+      "items": [
+        {
+          "productId": "latte",
+          "productName": "Latte",
+          "unitPrice": 20000,
+          "unitCost": 0,
+          "quantity": 1,
+          "subtotal": 20000,
+          "category": "Kopi"
+        }
+      ],
+      "total": 20000,
+      "taxLabel": null,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "grandTotal": 20000,
+      "status": "waiting",
+      "createdAt": "2026-07-24T02:02:40.999Z",
+      "updatedAt": "2026-07-24T02:02:40.999Z"
     }
   ],
   "activeCall": null,
@@ -161,16 +192,15 @@
     "type": "video",
     "url": "/media/promo.mp4",
     "filename": "promo.mp4",
-    "updatedAt": "2026-07-23T13:54:11.686Z"
+    "updatedAt": "2026-07-23T13:54:11.686Z",
+    "fit": "cover"
   },
   "taxConfig": {
     "enabled": false,
     "label": "Pajak",
     "rate": 10
   },
-  "ownerPinHash": {
-    "salt": "957d73ef1498fac88199b2f2123d46ca",
-    "hash": "06408e7cbe1ce8e2a10e0612000e066cfc9acdb50d86cae1aee3dc7d22073ebd"
-  },
-  "revision": 9
+  "revision": 10,
+  "nextCallEventId": 1784860491812,
+  "schemaVersion": 2
 }

@@ -69,13 +69,13 @@ Mari kita coba lakukan simulasi transaksi sederhana dari awal sampai selesai:
 1. **Memuat Pesanan Baru (HP Kasir)**
    * Pilih menu kopi yang dipesan (misal: *Espresso Single* & *Caramel Macchiato*).
    * Pilih metode pembayaran: **Tunai** atau **QRIS**.
-   * Tekan tombol merah **Sudah Dibayar**.
-   * Sistem akan menerbitkan nomor antrean secara otomatis (contoh: **001**).
+   * Tekan tombol **Bayar Rp… · Tunai/QRIS** sesuai metode yang dipilih.
+   * Sistem akan menerbitkan nomor antrean otomatis tanpa nol di depan (contoh: **1**).
 
 2. **Memanggil Nomor Antrean (HP Kasir)**
    * Di HP Kasir, buka tab **Pesanan**.
-   * Tekan tombol **Panggil** pada pesanan nomor **001**.
-   * **Lihat di Layar TV**: Nomor **001** akan muncul besar di layar TV disertai suara pemanggilan otomatis.
+   * Tekan tombol **Panggil** pada pesanan nomor **1**.
+   * **Lihat di Layar TV**: Nomor **1** akan muncul besar di layar TV disertai suara pemanggilan otomatis. Angka seperti **50** dibacakan sebagai **"lima puluh"**.
 
 3. **Menyerahkan Pesanan (HP Kasir)**
    * Setelah pembeli mengambil kopi di counter, tekan tombol **Selesai** di HP Kasir.
@@ -84,9 +84,9 @@ Mari kita coba lakukan simulasi transaksi sederhana dari awal sampai selesai:
 4. **Memantau Laporan Bisnis (HP Pemilik)**
    * Buka layar HP Pemilik (`/owner`).
    * Anda dapat langsung melihat:
-     * Total Omzet Kotor Harian
-     * Rincian Uang Tunai di Laci vs Masuk QRIS Bank
-     * Total Profit / Margin Keuntungan Bersih
+     * Penjualan Bersih dan Total Diterima
+     * Rincian Tunai vs QRIS dan pajak terkumpul
+     * Laba kotor berdasarkan HPP yang tersimpan
      * Grafik Penjualan & Riwayat Transaksi Terbaru
 
 ---

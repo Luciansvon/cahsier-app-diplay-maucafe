@@ -16,16 +16,15 @@
     "type": "video",
     "url": "/media/promo.mp4",
     "filename": "promo.mp4",
-    "updatedAt": "2026-07-23T13:54:11.686Z"
+    "updatedAt": "2026-07-23T13:54:11.686Z",
+    "fit": "cover"
   },
   "taxConfig": {
     "enabled": false,
     "label": "Pajak",
     "rate": 10
   },
-  "ownerPinHash": {
-    "salt": "957d73ef1498fac88199b2f2123d46ca",
-    "hash": "06408e7cbe1ce8e2a10e0612000e066cfc9acdb50d86cae1aee3dc7d22073ebd"
-  },
-  "revision": 1
+  "revision": 1,
+  "nextCallEventId": 1784860491810,
+  "schemaVersion": 2
 }

@@ -1,6 +1,8 @@
-import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { createPinHash, validatePin, verifyPinHash } from './security.js';
 
 const PAYMENT_METHODS = new Set(['cash', 'QRIS']);
+const MAX_ORDER_LINES = 100;
 
 function clone(value) {
   return structuredClone(value);
@@ -15,19 +17,29 @@ function jakartaDate(now) {
   }).format(new Date(now));
 }
 
-function requireText(value, label) {
+function requireText(value, label, maxLength = 120) {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${label} wajib diisi`);
-  return value.trim();
+  const text = value.trim();
+  if (text.length > maxLength) throw new Error(`${label} maksimal ${maxLength} karakter`);
+  return text;
 }
 
 function requirePrice(value) {
-  if (!Number.isInteger(value) || value < 0) throw new Error('Harga harus bilangan bulat positif');
+  if (!Number.isSafeInteger(value) || value < 0 || value > 1_000_000_000) throw new Error('Harga harus bilangan bulat antara 0 dan 1 miliar');
   return value;
 }
 
 function requireCost(value) {
   if (value === undefined || value === null) return 0;
-  if (!Number.isInteger(value) || value < 0) throw new Error('Harga modal harus bilangan bulat positif atau nol');
+  if (!Number.isSafeInteger(value) || value < 0 || value > 1_000_000_000) throw new Error('Harga modal harus bilangan bulat antara 0 dan 1 miliar');
+  return value;
+}
+
+function requireCupUsage(value) {
+  if (value === undefined || value === null) return 0;
+  if (!Number.isSafeInteger(value) || value < 0 || value > 10) {
+    throw new Error('Pemakaian cup harus bilangan bulat antara 0 dan 10');
+  }
   return value;
 }
 
@@ -43,65 +55,115 @@ function changed(state) {
 }
 
 export function createInitialState({ products = [] } = {}) {
+  const promoMedia = {
+    type: 'video',
+    url: '/media/promo.mp4',
+    filename: 'promo.mp4',
+    fit: 'cover',
+    updatedAt: new Date().toISOString(),
+  };
   return {
     businessDate: null,
     nextQueueNumber: 1,
+    nextCallEventId: 1,
     products: clone(products),
     orders: [],
+    shifts: [],
+    operationalEntries: [],
+    inventoryMovements: [],
     activeCall: null,
-    promoMedia: {
-      type: 'video',
-      url: '/media/promo.mp4',
-      filename: 'promo.mp4',
-      updatedAt: new Date().toISOString(),
-    },
+    promoMedia,
+    mediaPlaylist: [{
+      id: 'default-promo',
+      ...clone(promoMedia),
+      durationSeconds: null,
+      imageDurationSeconds: 8,
+      active: true,
+    }],
     taxConfig: {
       enabled: false,
       label: 'Pajak',
       rate: 10,
     },
-    ownerPinHash: createOwnerPinHash(DEFAULT_OWNER_PIN),
     revision: 0,
+    schemaVersion: 3,
   };
 }
 
-export function createOrder(currentState, input, now = new Date().toISOString()) {
+export function rolloverBusinessDay(currentState, now = new Date().toISOString()) {
   const state = clone(currentState);
+  const businessDate = jakartaDate(now);
+  if (state.businessDate === businessDate) return state;
+
+  state.businessDate = businessDate;
+  state.nextQueueNumber = 1;
+  for (const order of state.orders ?? []) {
+    if (['waiting', 'ready'].includes(order.status)) {
+      order.status = 'expired';
+      order.paymentStatus = 'void';
+      order.expiredAt = now;
+      order.expiredReason = 'Pergantian hari operasional';
+      order.updatedAt = now;
+    }
+  }
+  state.activeCall = null;
+  return changed(state);
+}
+
+export function createOrder(currentState, input, now = new Date().toISOString()) {
+  let state = clone(currentState);
   if (!Array.isArray(input?.items) || input.items.length === 0) throw new Error('Item pesanan wajib diisi');
+  if (input.items.length > MAX_ORDER_LINES) throw new Error(`Item pesanan maksimal ${MAX_ORDER_LINES} baris`);
+
+  const requestId = input.requestId === undefined || input.requestId === null
+    ? null
+    : requireText(input.requestId, 'ID permintaan', 100);
+  const existingOrder = requestId ? state.orders.find((order) => order.requestId === requestId) : null;
+  if (existingOrder) return { state, order: existingOrder, duplicate: true };
 
   const paymentMethod = input.paymentMethod === 'qris' ? 'QRIS' : input.paymentMethod;
   if (!PAYMENT_METHODS.has(paymentMethod)) throw new Error('Metode pembayaran tidak valid');
 
   const businessDate = jakartaDate(now);
-  if (state.businessDate !== businessDate) {
-    state.businessDate = businessDate;
-    state.nextQueueNumber = 1;
-  }
+  state = rolloverBusinessDay(state, now);
 
   const items = input.items.map(({ productId, quantity }) => {
     const product = state.products.find((candidate) => candidate.id === productId && candidate.active !== false);
     if (!product) throw new Error('Produk tidak ditemukan atau sedang nonaktif');
-    if (!Number.isInteger(quantity) || quantity < 1) throw new Error('Jumlah item minimal satu');
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 999) throw new Error('Jumlah item harus bilangan bulat antara 1 dan 999');
+    const subtotal = product.price * quantity;
+    if (!Number.isSafeInteger(subtotal)) throw new Error('Total pesanan terlalu besar');
     return {
       productId: product.id,
       productName: product.name,
       unitPrice: product.price,
       unitCost: product.cost ?? 0,
+      cupUsage: requireCupUsage(product.cupUsage),
+      category: product.category || 'Lainnya',
       quantity,
-      subtotal: product.price * quantity,
+      subtotal,
     };
   });
 
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+  if (!Number.isSafeInteger(subtotal)) throw new Error('Total pesanan terlalu besar');
   const tax = state.taxConfig;
   const taxAmount = tax?.enabled ? Math.round(subtotal * (tax.rate ?? 0) / 100) : 0;
   const grandTotal = subtotal + taxAmount;
+  if (!Number.isSafeInteger(taxAmount) || !Number.isSafeInteger(grandTotal)) throw new Error('Total pesanan terlalu besar');
 
   const order = {
     id: randomUUID(),
-    queueNumber: String(state.nextQueueNumber).padStart(3, '0'),
+    ...(requestId ? { requestId } : {}),
+    queueNumber: String(state.nextQueueNumber),
     businessDate,
     paymentMethod,
+    paymentStatus: 'paid',
+    ...(input.shiftId || input.employeeId || input.employeeName ? {
+      shiftId: requireText(input.shiftId, 'Shift', 100),
+      employeeId: requireText(input.employeeId, 'ID karyawan', 100),
+      employeeName: requireText(input.employeeName, 'Nama karyawan', 120),
+    } : {}),
     items,
     total: subtotal,
     taxLabel: tax?.enabled ? (tax.label || 'Pajak') : null,
@@ -128,27 +190,37 @@ export function callOrder(currentState, orderId, now = new Date().toISOString())
   state.activeCall = {
     orderId: order.id,
     queueNumber: order.queueNumber,
-    eventId: (state.activeCall?.eventId ?? 0) + 1,
+    eventId: state.nextCallEventId ?? 1,
     calledAt: now,
   };
+  state.nextCallEventId = (state.nextCallEventId ?? 1) + 1;
   return { state: changed(state), order };
 }
 
 export function completeOrder(currentState, orderId, now = new Date().toISOString()) {
   const state = clone(currentState);
   const order = findOrder(state, orderId);
-  if (['completed', 'cancelled'].includes(order.status)) throw new Error('Pesanan ini sudah ditutup');
+  if (['completed', 'cancelled', 'expired'].includes(order.status)) throw new Error('Pesanan ini sudah ditutup');
   order.status = 'completed';
   order.updatedAt = now;
+  if (state.activeCall?.orderId === order.id) state.activeCall = null;
   return { state: changed(state), order };
 }
 
-export function cancelOrder(currentState, orderId, now = new Date().toISOString()) {
+export function cancelOrder(currentState, orderId, details = {}, now = new Date().toISOString()) {
   const state = clone(currentState);
   const order = findOrder(state, orderId);
   if (order.status === 'completed') throw new Error('Pesanan selesai tidak dapat dibatalkan');
+  if (['cancelled', 'expired'].includes(order.status)) throw new Error('Pesanan ini sudah ditutup');
+  const reason = requireText(details?.reason, 'Alasan pembatalan', 300);
   order.status = 'cancelled';
+  order.paymentStatus = 'void';
+  order.cancelledAt = now;
+  order.cancelReason = reason;
+  order.cancelledBy = details?.cancelledBy || 'admin';
+  order.approvedBy = details?.approvedBy || 'owner';
   order.updatedAt = now;
+  if (state.activeCall?.orderId === order.id) state.activeCall = null;
   return { state: changed(state), order };
 }
 
@@ -159,6 +231,11 @@ export function resetQueue(currentState, now = new Date().toISOString()) {
   for (const order of state.orders) {
     if (['waiting', 'ready'].includes(order.status)) {
       order.status = 'cancelled';
+      order.paymentStatus = 'void';
+      order.cancelledAt = now;
+      order.cancelReason = 'Reset antrean oleh Owner';
+      order.cancelledBy = 'owner';
+      order.approvedBy = 'owner';
       order.updatedAt = now;
     }
   }
@@ -170,10 +247,11 @@ export function addProduct(currentState, input) {
   const state = clone(currentState);
   const product = {
     id: randomUUID(),
-    name: requireText(input?.name, 'Nama produk'),
-    category: requireText(input?.category, 'Kategori'),
+    name: requireText(input?.name, 'Nama produk', 100),
+    category: requireText(input?.category, 'Kategori', 60),
     price: requirePrice(input?.price),
     cost: requireCost(input?.cost),
+    cupUsage: requireCupUsage(input?.cupUsage),
     active: input?.active !== false,
   };
   state.products.push(product);
@@ -184,11 +262,24 @@ export function updateProduct(currentState, productId, input) {
   const state = clone(currentState);
   const product = state.products.find((candidate) => candidate.id === productId);
   if (!product) throw new Error('Produk tidak ditemukan');
-  if ('name' in input) product.name = requireText(input.name, 'Nama produk');
-  if ('category' in input) product.category = requireText(input.category, 'Kategori');
+  if ('name' in input) product.name = requireText(input.name, 'Nama produk', 100);
+  if ('category' in input) product.category = requireText(input.category, 'Kategori', 60);
   if ('price' in input) product.price = requirePrice(input.price);
   if ('cost' in input) product.cost = requireCost(input.cost);
+  if ('cupUsage' in input) product.cupUsage = requireCupUsage(input.cupUsage);
   if ('active' in input) product.active = Boolean(input.active);
+  return { state: changed(state), product };
+}
+
+export function setProductImage(currentState, productId, imageUrl) {
+  const state = clone(currentState);
+  const product = state.products.find((candidate) => candidate.id === productId);
+  if (!product) throw new Error('Produk tidak ditemukan');
+  const normalized = String(imageUrl ?? '').trim();
+  if (!/^\/media\/uploaded-product-[A-Za-z0-9_-]+-\d+(?:-[a-f0-9]+)?\.(?:png|jpg|webp)$/.test(normalized)) {
+    throw new Error('URL foto produk tidak valid');
+  }
+  product.imageUrl = normalized;
   return { state: changed(state), product };
 }
 
@@ -200,6 +291,7 @@ export function updateTaxConfig(currentState, input) {
   if ('label' in input) {
     const label = String(input.label ?? '').trim();
     if (!label) throw new Error('Label pajak wajib diisi');
+    if (label.length > 30) throw new Error('Label pajak maksimal 30 karakter');
     config.label = label;
   }
   if ('rate' in input) {
@@ -211,30 +303,16 @@ export function updateTaxConfig(currentState, input) {
   return { state: changed(state), taxConfig: config };
 }
 
-export const DEFAULT_OWNER_PIN = '1234';
 
 function createOwnerPinHash(pin) {
-  const salt = randomBytes(16).toString('hex');
-  const hash = scryptSync(String(pin), salt, 32).toString('hex');
-  return { salt, hash };
+  return createPinHash(pin);
 }
 
-function verifyOwnerPinHash(record, inputPin) {
-  if (!record?.salt || !record?.hash) return false;
-  const expected = Buffer.from(record.hash, 'hex');
-  const actual = scryptSync(String(inputPin ?? '').trim(), record.salt, expected.length);
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
-}
-
-export function verifyOwnerPin(currentStateOrPin, inputPin) {
-  if (typeof currentStateOrPin === 'object' && currentStateOrPin !== null) {
-    if (currentStateOrPin.ownerPinHash) {
-      return verifyOwnerPinHash(currentStateOrPin.ownerPinHash, inputPin);
-    }
-    const legacyPin = currentStateOrPin.ownerPin || DEFAULT_OWNER_PIN;
-    return String(inputPin ?? '').trim() === String(legacyPin).trim();
-  }
-  return String(currentStateOrPin).trim() === DEFAULT_OWNER_PIN;
+export function verifyOwnerPin(currentState, inputPin) {
+  if (!currentState || typeof currentState !== 'object') return false;
+  if (currentState.ownerPinHash) return verifyPinHash(currentState.ownerPinHash, inputPin);
+  if (currentState.ownerPin) return String(inputPin ?? '').trim() === String(currentState.ownerPin).trim();
+  return false;
 }
 
 export function migrateOwnerPin(currentState, inputPin) {
@@ -248,19 +326,17 @@ export function migrateOwnerPin(currentState, inputPin) {
 
 export function updateOwnerPin(currentState, currentPin, newPin) {
   const state = clone(currentState);
-  if (!verifyOwnerPin(state, currentPin)) {
-    throw new Error('PIN saat ini tidak valid');
-  }
-  const formattedNewPin = String(newPin ?? '').trim();
-  if (!/^\d{4,8}$/.test(formattedNewPin)) {
-    throw new Error('PIN baru harus berupa 4 hingga 8 angka');
-  }
+  if (!verifyOwnerPin(state, currentPin)) throw new Error('PIN saat ini tidak valid');
+  const formattedNewPin = validatePin(newPin, 'PIN baru');
   state.ownerPinHash = createOwnerPinHash(formattedNewPin);
   delete state.ownerPin;
   return { state: changed(state) };
 }
 
 export function purgeOldOrders(currentState, daysToKeep = 30, now = new Date().toISOString()) {
+  if (!Number.isSafeInteger(daysToKeep) || daysToKeep < 1 || daysToKeep > 3650) {
+    throw new Error('Retensi laporan harus bilangan bulat antara 1 dan 3650 hari');
+  }
   const state = clone(currentState);
   const cutoffMs = new Date(now).getTime() - daysToKeep * 24 * 60 * 60 * 1000;
   state.orders = state.orders.filter((order) => {
@@ -279,14 +355,16 @@ export function clearAllOrders(currentState) {
   return changed(state);
 }
 
-export function updatePromoMedia(currentState, { type, url, filename }, now = new Date().toISOString()) {
+export function updatePromoMedia(currentState, { type, url, filename, fit = 'cover' }, now = new Date().toISOString()) {
   const state = clone(currentState);
   if (!['video', 'image'].includes(type)) throw new Error('Tipe media tidak valid');
   if (typeof url !== 'string' || !url.trim()) throw new Error('URL media wajib diisi');
+  if (!['cover', 'contain'].includes(fit)) throw new Error('Mode tampilan media tidak valid');
   state.promoMedia = {
     type,
     url: url.trim(),
-    filename: filename ? String(filename).trim() : 'custom-promo',
+    filename: filename ? String(filename).trim().slice(0, 120) : 'custom-promo',
+    fit,
     updatedAt: now,
   };
   return { state: changed(state), promoMedia: state.promoMedia };
@@ -298,6 +376,7 @@ export function resetPromoMedia(currentState, now = new Date().toISOString()) {
     type: 'video',
     url: '/media/promo.mp4',
     filename: 'promo.mp4',
+    fit: 'cover',
     updatedAt: now,
   };
   return { state: changed(state), promoMedia: state.promoMedia };

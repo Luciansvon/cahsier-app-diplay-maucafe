@@ -274,7 +274,7 @@ const htmlContent = `<!DOCTYPE html>
     <div class="step-box">
       <div class="step-num">Tahap 1</div>
       <div class="step-text">Input Pesanan di HP Kasir</div>
-      <div class="step-detail">Pilih item kopi di HP Kasir, tentukan metode pembayaran (Tunai / QRIS), lalu tekan tombol <strong>Sudah Dibayar</strong>. Nomor antrean otomatis diterbitkan.</div>
+      <div class="step-detail">Pilih item kopi di HP Kasir, tentukan metode pembayaran (Tunai / QRIS), lalu tekan tombol <strong>Bayar Rp… · Tunai/QRIS</strong>. Nomor antrean otomatis diterbitkan.</div>
     </div>
 
     <div class="step-box">
@@ -286,7 +286,7 @@ const htmlContent = `<!DOCTYPE html>
     <div class="step-box">
       <div class="step-num">Tahap 3</div>
       <div class="step-text">Menyerahkan Pesanan & Cek Pemilik Toko</div>
-      <div class="step-detail">Setelah kopi diambil, tekan <strong>Selesai</strong> di HP Kasir. Buka HP Pemilik (<code>/owner</code>) untuk melihat update omzet kotor, uang tunai laci, dan laba bersih secara real-time.</div>
+      <div class="step-detail">Setelah kopi diambil, tekan <strong>Selesai</strong> di HP Kasir. Buka HP Pemilik (<code>/owner</code>) untuk melihat update penjualan bersih, total diterima, rincian pembayaran, dan laba kotor secara real-time.</div>
     </div>
 
     <div class="grid-3" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">

@@ -6,9 +6,24 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "node --test",
-    "build": "node scripts/build.js"
+    "build": "node scripts/build.js",
+    "build:android": "node scripts/build.js --target=android",
+    "android:sync": "npm run build:android && cap sync android",
+    "android:debug": "npm run android:sync && node scripts/android-gradle.js assembleDebug",
+    "android:lint": "npm run android:sync && node scripts/android-gradle.js lintDebug",
+    "db:backup": "node scripts/backup-database.mjs",
+    "db:restore": "node scripts/restore-database.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.4.2",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/core": "8.4.2",
+    "@capacitor/network": "8.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.4.2"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "businessDate": null,
+  "businessDate": "2026-07-23",
   "nextQueueNumber": 1,
   "products": [
     {
@@ -14,18 +14,17 @@
   "activeCall": null,
   "promoMedia": {
     "type": "video",
-    "url": "/media/promo.mp4",
-    "filename": "promo.mp4",
-    "updatedAt": "2026-07-23T13:54:11.686Z"
+    "url": "/media/uploaded-promo-maucafe-kemang-1784815151461.mp4",
+    "filename": "Create_a_simple_modern_digital.mp4",
+    "updatedAt": "2026-07-23T13:59:11.469Z",
+    "fit": "cover"
   },
   "taxConfig": {
     "enabled": false,
     "label": "Pajak",
     "rate": 10
   },
-  "ownerPinHash": {
-    "salt": "957d73ef1498fac88199b2f2123d46ca",
-    "hash": "06408e7cbe1ce8e2a10e0612000e066cfc9acdb50d86cae1aee3dc7d22073ebd"
-  },
-  "revision": 1
+  "revision": 4,
+  "nextCallEventId": 1784860491811,
+  "schemaVersion": 2
 }

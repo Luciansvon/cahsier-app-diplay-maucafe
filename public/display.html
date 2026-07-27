@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Layar Antrean Kedai Kopi</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="./base.css">
+  <link rel="stylesheet" href="./display.css">
 </head>
 <body class="display-page">
   <main class="display-shell">
@@ -17,13 +18,13 @@
       </div>
       <div class="display-controls">
         <span id="display-connection" class="connection offline" role="status">Menghubungkan...</span>
-        <button id="enable-voice" class="voice-button">🔊 Klik Layar TV untuk Aktifkan Suara</button>
+        <button id="enable-voice" class="voice-button">Klik layar TV untuk aktifkan suara</button>
       </div>
     </section>
     <section class="promo-panel">
       <div class="promo-topline"><span id="promo-tagline">MENU PILIHAN</span><span id="promo-counter">01 / 01</span></div>
       <div class="promo-wrapper">
-        <video id="promo-video" class="promo-video" autoplay loop muted playsinline hidden>
+        <video id="promo-video" class="promo-video" autoplay muted playsinline hidden>
           <source id="promo-video-source" src="/media/promo.mp4" type="video/mp4">
         </video>
         <img id="promo-image" class="promo-image" alt="Promosi Maucafe" hidden>
@@ -36,6 +37,6 @@
       <div class="promo-decoration" aria-hidden="true"><span></span><span></span><span></span></div>
     </section>
   </main>
-  <script type="module" src="/display.js"></script>
+  <script type="module" src="./display.js"></script>
 </body>
 </html>
