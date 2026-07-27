@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 
 import { createQueueServer } from '../src/server.js';
 import { completeOrder, createInitialState, createOrder } from '../src/queue.js';
+import { recordInventoryMovement } from '../src/operations.js';
 import { createPinHash } from '../src/security.js';
 import { importLegacyJson, SqliteDatabase } from '../src/sqlite-store.js';
 
@@ -97,19 +98,267 @@ async function loginOwner(baseUrl) {
   return cookiePair(login.response);
 }
 
-async function createPartnerAndAssignOutlet(baseUrl, ownerCookie, outletId = 'maucafe-alunalun') {
+async function createPartnerWithApprovedOutlet(baseUrl, ownerCookie) {
   const created = await jsonRequest(`${baseUrl}/api/owner/partners`, 'POST', {
     name: 'Mitra Jepara',
     username: 'mitra.jepara',
     pin: '5678',
   }, ownerCookie);
   assert.equal(created.response.status, 201);
-  const assigned = await jsonRequest(`${baseUrl}/api/owner/outlets/${outletId}/assign`, 'POST', {
-    partnerId: created.payload.partner.id,
-  }, ownerCookie);
-  assert.equal(assigned.response.status, 200);
-  return created.payload.partner;
+  const login = await jsonRequest(`${baseUrl}/api/partner/login`, 'POST', {
+    username: 'mitra.jepara',
+    pin: '5678',
+  });
+  assert.equal(login.response.status, 200);
+  const partnerCookie = cookiePair(login.response);
+  const proposed = await jsonRequest(`${baseUrl}/api/partner/outlets`, 'POST', {
+    name: 'MAUCAFE Mitra Jepara',
+    address: 'Jl. Mitra Jepara',
+  }, partnerCookie);
+  assert.equal(proposed.response.status, 201);
+  const approved = await jsonRequest(
+    `${baseUrl}/api/owner/outlets/${proposed.payload.outlet.id}/approve`,
+    'POST',
+    {},
+    ownerCookie,
+  );
+  assert.equal(approved.response.status, 200);
+  return {
+    ...created.payload.partner,
+    outletId: proposed.payload.outlet.id,
+    partnerCookie,
+  };
 }
+
+test('Partner must propose its own outlet before Owner approval', async (t) => {
+  const { baseUrl, defaultOutletId } = await fixture(t);
+  const ownerCookie = await loginOwner(baseUrl);
+  const created = await jsonRequest(`${baseUrl}/api/owner/partners`, 'POST', {
+    name: 'Mitra Jepara',
+    username: 'mitra.jepara',
+    pin: '5678',
+  }, ownerCookie);
+  assert.equal(created.response.status, 201);
+
+  const legacyAssignment = await jsonRequest(
+    `${baseUrl}/api/owner/outlets/${defaultOutletId}/assign`,
+    'POST',
+    { partnerId: created.payload.partner.id },
+    ownerCookie,
+  );
+  assert.equal(legacyAssignment.response.status, 404);
+
+  const partnerLogin = await jsonRequest(`${baseUrl}/api/partner/login`, 'POST', {
+    username: 'mitra.jepara',
+    pin: '5678',
+  });
+  assert.equal(partnerLogin.response.status, 200);
+  const partnerCookie = cookiePair(partnerLogin.response);
+
+  const proposed = await jsonRequest(`${baseUrl}/api/partner/outlets`, 'POST', {
+    name: 'MAUCAFE Jepara Kota',
+    address: 'Jl. Pemuda',
+  }, partnerCookie);
+  assert.equal(proposed.response.status, 201);
+  assert.equal(proposed.payload.outlet.partnerId, created.payload.partner.id);
+  assert.equal(proposed.payload.outlet.status, 'pending');
+
+  const approved = await jsonRequest(
+    `${baseUrl}/api/owner/outlets/${proposed.payload.outlet.id}/approve`,
+    'POST',
+    {},
+    ownerCookie,
+  );
+  assert.equal(approved.response.status, 200);
+  assert.equal(approved.payload.outlet.status, 'active');
+});
+
+test('Partner dashboard combines every active outlet owned by that Partner', async (t) => {
+  const { app, baseUrl } = await fixture(t);
+  const ownerCookie = await loginOwner(baseUrl);
+  const created = await jsonRequest(`${baseUrl}/api/owner/partners`, 'POST', {
+    name: 'Mitra Gabungan',
+    username: 'mitra.gabungan',
+    pin: '5678',
+  }, ownerCookie);
+  assert.equal(created.response.status, 201);
+  const login = await jsonRequest(`${baseUrl}/api/partner/login`, 'POST', {
+    username: 'mitra.gabungan',
+    pin: '5678',
+  });
+  const partnerCookie = cookiePair(login.response);
+
+  const outletIds = [];
+  for (const [name, address] of [['MAUCAFE Utara', 'Jl. Utara'], ['MAUCAFE Selatan', 'Jl. Selatan']]) {
+    const proposed = await jsonRequest(`${baseUrl}/api/partner/outlets`, 'POST', {
+      name,
+      address,
+    }, partnerCookie);
+    await jsonRequest(
+      `${baseUrl}/api/owner/outlets/${proposed.payload.outlet.id}/approve`,
+      'POST',
+      {},
+      ownerCookie,
+    );
+    outletIds.push(proposed.payload.outlet.id);
+  }
+
+  await app.stores.get(outletIds[0]).store.update((state) => (
+    createOrder(state, {
+      items: [{ productId: 'latte', quantity: 1 }],
+      paymentMethod: 'cash',
+    }).state
+  ));
+  await app.stores.get(outletIds[1]).store.update((state) => (
+    createOrder(state, {
+      items: [{ productId: 'latte', quantity: 2 }],
+      paymentMethod: 'QRIS',
+    }).state
+  ));
+
+  const dashboard = await jsonRequest(`${baseUrl}/api/partner/dashboard`, 'GET', undefined, partnerCookie);
+  assert.equal(dashboard.response.status, 200);
+  assert.equal(dashboard.payload.summary.outletCount, 2);
+  assert.equal(dashboard.payload.summary.revenue, 60_000);
+  assert.equal(dashboard.payload.summary.received, 60_000);
+  assert.equal(dashboard.payload.summary.grossProfit, 36_000);
+  assert.equal(dashboard.payload.summary.transactionCount, 2);
+  assert.deepEqual(dashboard.payload.summary.paymentTotals, { cash: 20_000, QRIS: 40_000 });
+});
+
+test('Owner summary combines active outlets per Partner including cup balance', async (t) => {
+  const { app, baseUrl } = await fixture(t);
+  const ownerCookie = await loginOwner(baseUrl);
+
+  async function createPartnerOutlets({
+    name,
+    username,
+    pin,
+    outlets,
+    approvedCount,
+  }) {
+    const created = await jsonRequest(`${baseUrl}/api/owner/partners`, 'POST', {
+      name,
+      username,
+      pin,
+    }, ownerCookie);
+    assert.equal(created.response.status, 201);
+    const login = await jsonRequest(`${baseUrl}/api/partner/login`, 'POST', { username, pin });
+    assert.equal(login.response.status, 200);
+    const partnerCookie = cookiePair(login.response);
+    const outletIds = [];
+    for (const [index, [outletName, address]] of outlets.entries()) {
+      const proposed = await jsonRequest(`${baseUrl}/api/partner/outlets`, 'POST', {
+        name: outletName,
+        address,
+      }, partnerCookie);
+      assert.equal(proposed.response.status, 201);
+      outletIds.push(proposed.payload.outlet.id);
+      if (index < approvedCount) {
+        const approved = await jsonRequest(
+          `${baseUrl}/api/owner/outlets/${proposed.payload.outlet.id}/approve`,
+          'POST',
+          {},
+          ownerCookie,
+        );
+        assert.equal(approved.response.status, 200);
+      }
+    }
+    return { partner: created.payload.partner, outletIds };
+  }
+
+  const doni = await createPartnerOutlets({
+    name: 'Doni',
+    username: 'doni.owner',
+    pin: '5678',
+    approvedCount: 3,
+    outlets: [
+      ['MAUCAFE Doni Utara', 'Jl. Doni Utara'],
+      ['MAUCAFE Doni Tengah', 'Jl. Doni Tengah'],
+      ['MAUCAFE Doni Selatan', 'Jl. Doni Selatan'],
+      ['MAUCAFE Doni Pending', 'Jl. Doni Pending'],
+    ],
+  });
+  const dedi = await createPartnerOutlets({
+    name: 'Dedi',
+    username: 'dedi.owner',
+    pin: '6789',
+    approvedCount: 2,
+    outlets: [
+      ['MAUCAFE Dedi Barat', 'Jl. Dedi Barat'],
+      ['MAUCAFE Dedi Timur', 'Jl. Dedi Timur'],
+    ],
+  });
+
+  async function seedOutlet(outletId, { quantity = 0, paymentMethod = 'cash', cups }) {
+    await app.stores.get(outletId).store.update((current) => {
+      const withOrder = quantity > 0
+        ? createOrder(current, {
+          items: [{ productId: 'latte', quantity }],
+          paymentMethod,
+        }).state
+        : current;
+      return recordInventoryMovement(withOrder, {
+        type: 'received',
+        quantity: cups,
+        actorType: 'owner',
+        actorId: 'owner',
+        actorName: 'Owner',
+      }).state;
+    });
+  }
+
+  await seedOutlet(doni.outletIds[0], { quantity: 1, paymentMethod: 'cash', cups: 10 });
+  await seedOutlet(doni.outletIds[1], { quantity: 2, paymentMethod: 'QRIS', cups: 20 });
+  await seedOutlet(doni.outletIds[2], { cups: 5 });
+  await seedOutlet(dedi.outletIds[0], { quantity: 3, paymentMethod: 'cash', cups: 9 });
+  await seedOutlet(dedi.outletIds[1], { cups: 1 });
+
+  const response = await jsonRequest(`${baseUrl}/api/owner/multi-summary`, 'GET', undefined, ownerCookie);
+  assert.equal(response.response.status, 200);
+  const doniSummary = response.payload.partnerSummaries.find((summary) => summary.id === doni.partner.id);
+  const dediSummary = response.payload.partnerSummaries.find((summary) => summary.id === dedi.partner.id);
+
+  assert.deepEqual({
+    outletCount: doniSummary.outletCount,
+    pendingOutletCount: doniSummary.pendingOutletCount,
+    received: doniSummary.received,
+    netProfit: doniSummary.netProfit,
+    salesCount: doniSummary.salesCount,
+    activeCount: doniSummary.activeCount,
+    cupBalance: doniSummary.inventory.balance,
+  }, {
+    outletCount: 3,
+    pendingOutletCount: 1,
+    received: 60_000,
+    netProfit: 36_000,
+    salesCount: 2,
+    activeCount: 2,
+    cupBalance: 35,
+  });
+  assert.deepEqual({
+    outletCount: dediSummary.outletCount,
+    pendingOutletCount: dediSummary.pendingOutletCount,
+    received: dediSummary.received,
+    netProfit: dediSummary.netProfit,
+    salesCount: dediSummary.salesCount,
+    activeCount: dediSummary.activeCount,
+    cupBalance: dediSummary.inventory.balance,
+  }, {
+    outletCount: 2,
+    pendingOutletCount: 0,
+    received: 60_000,
+    netProfit: 36_000,
+    salesCount: 1,
+    activeCount: 1,
+    cupBalance: 10,
+  });
+  assert.equal(response.payload.summaries.some((summary) => summary.id === doni.outletIds[3]), false);
+  assert.equal(response.payload.unassignedSummary.name, 'Outlet tanpa Mitra');
+  assert.equal(response.payload.unassignedSummary.outletCount, 2);
+  assert.equal(response.payload.grandTotals.received, 120_000);
+  assert.equal(response.payload.grandTotals.salesCount, 3);
+});
 
 test('serves pages and exposes only a minimal public display state', async (t) => {
   const { baseUrl, defaultOutletId } = await fixture(t);
@@ -181,23 +430,18 @@ test('public state expires yesterday active queue before exposing display data',
 });
 
 test('supports scoped Partner and Employee accounts, shifts, and dynamic outlet approval', async (t) => {
-  const { baseUrl, defaultOutletId } = await fixture(t);
+  const { baseUrl } = await fixture(t);
   const ownerCookie = await loginOwner(baseUrl);
-  const partner = await createPartnerAndAssignOutlet(baseUrl, ownerCookie, defaultOutletId);
-
-  const partnerLogin = await jsonRequest(`${baseUrl}/api/partner/login`, 'POST', {
-    username: 'mitra.jepara',
-    pin: '5678',
-  });
-  assert.equal(partnerLogin.response.status, 200);
-  const partnerCookie = cookiePair(partnerLogin.response);
+  const partner = await createPartnerWithApprovedOutlet(baseUrl, ownerCookie);
+  const partnerCookie = partner.partnerCookie;
+  const partnerOutletId = partner.outletId;
   assert.equal(
     (await jsonRequest(`${baseUrl}/api/partner/session`, 'GET', undefined, partnerCookie)).payload.authenticated,
     true,
   );
 
   const employee = await jsonRequest(`${baseUrl}/api/partner/employees`, 'POST', {
-    outletId: defaultOutletId,
+    outletId: partnerOutletId,
     name: 'Kasir Pagi',
     username: 'kasir.pagi',
     pin: '2468',
@@ -206,14 +450,14 @@ test('supports scoped Partner and Employee accounts, shifts, and dynamic outlet 
   assert.equal(employee.payload.user.role, 'employee');
   assert.equal('pinHash' in employee.payload.user, false);
 
-  const employeeLogin = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/admin/login`, 'POST', {
+  const employeeLogin = await jsonRequest(`${baseUrl}/api/outlet/${partnerOutletId}/admin/login`, 'POST', {
     username: 'kasir.pagi',
     pin: '2468',
   });
   assert.equal(employeeLogin.response.status, 200);
   const employeeCookie = cookiePair(employeeLogin.response);
 
-  const blockedOrder = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/orders`, 'POST', {
+  const blockedOrder = await jsonRequest(`${baseUrl}/api/outlet/${partnerOutletId}/orders`, 'POST', {
     shiftId: 'fake-client-shift',
     employeeId: 'fake-client-user',
     employeeName: 'Palsu',
@@ -223,13 +467,13 @@ test('supports scoped Partner and Employee accounts, shifts, and dynamic outlet 
   assert.equal(blockedOrder.response.status, 409);
   assert.match(blockedOrder.payload.error, /buka shift/i);
 
-  const opened = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/shifts/open`, 'POST', {
+  const opened = await jsonRequest(`${baseUrl}/api/outlet/${partnerOutletId}/shifts/open`, 'POST', {
     label: 'Pagi',
     openingCash: 100_000,
   }, employeeCookie);
   assert.equal(opened.response.status, 201);
 
-  const createdOrder = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/orders`, 'POST', {
+  const createdOrder = await jsonRequest(`${baseUrl}/api/outlet/${partnerOutletId}/orders`, 'POST', {
     shiftId: 'fake-client-shift',
     employeeId: 'fake-client-user',
     employeeName: 'Palsu',
@@ -242,7 +486,7 @@ test('supports scoped Partner and Employee accounts, shifts, and dynamic outlet 
   assert.equal(createdOrder.payload.order.employeeName, 'Kasir Pagi');
 
   const cashierState = await jsonRequest(
-    `${baseUrl}/api/outlet/${defaultOutletId}/admin/state`,
+    `${baseUrl}/api/outlet/${partnerOutletId}/admin/state`,
     'GET',
     undefined,
     employeeCookie,
@@ -292,7 +536,7 @@ test('supports scoped Partner and Employee accounts, shifts, and dynamic outlet 
   assert.equal(deactivated.payload.user.active, false);
 
   const exportResponse = await fetch(
-    `${baseUrl}/api/partner/outlets/${defaultOutletId}/export-sales?date=${dashboard.payload.outlets[0].businessDate}`,
+    `${baseUrl}/api/partner/outlets/${partnerOutletId}/export-sales?date=${dashboard.payload.outlets[0].businessDate}`,
     { headers: { cookie: partnerCookie } },
   );
   assert.equal(exportResponse.status, 200);
@@ -328,11 +572,24 @@ test('protects cashier mutations and scopes admin sessions to one outlet', async
   assert.equal(created.response.status, 201);
   assert.equal(created.payload.order.queueNumber, '1');
   assert.equal('unitCost' in created.payload.order.items[0], false);
+  const publicPreparing = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/state`);
+  assert.deepEqual(publicPreparing.payload.preparingQueueNumbers, ['1']);
+  assert.equal(JSON.stringify(publicPreparing.payload).includes(created.payload.order.id), false);
 
   const crossOutlet = await jsonRequest(`${baseUrl}/api/outlet/maucafe-pik/orders`, 'POST', {
     items: [{ productId: 'latte', quantity: 1 }], paymentMethod: 'cash',
   }, adminCookie);
   assert.equal(crossOutlet.response.status, 401);
+
+  for (let index = 0; index < 7; index += 1) {
+    const additional = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/orders`, 'POST', {
+      items: [{ productId: 'latte', quantity: 1 }],
+      paymentMethod: 'cash',
+    }, adminCookie);
+    assert.equal(additional.response.status, 201);
+  }
+  const allPreparing = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/state`);
+  assert.deepEqual(allPreparing.payload.preparingQueueNumbers, ['1', '2', '3', '4', '5', '6', '7', '8']);
 
   const id = created.payload.order.id;
   const called = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/orders/${id}/call`, 'POST', {}, adminCookie);
@@ -407,7 +664,7 @@ test('changing the Owner PIN revokes every existing Owner session', async (t) =>
 });
 
 test('duplicate PIN is rejected when creating or resetting Partner and Employee credentials', async (t) => {
-  const { baseUrl, defaultOutletId } = await fixture(t);
+  const { baseUrl } = await fixture(t);
   const ownerCookie = await loginOwner(baseUrl);
 
   const duplicatePartner = await jsonRequest(`${baseUrl}/api/owner/partners`, 'POST', {
@@ -418,16 +675,12 @@ test('duplicate PIN is rejected when creating or resetting Partner and Employee 
   assert.equal(duplicatePartner.response.status, 409);
   assert.equal(duplicatePartner.payload.error, 'PIN sudah digunakan, pilih PIN lain.');
 
-  const partner = await createPartnerAndAssignOutlet(baseUrl, ownerCookie, defaultOutletId);
-  const partnerLogin = await jsonRequest(`${baseUrl}/api/partner/login`, 'POST', {
-    username: 'mitra.jepara',
-    pin: '5678',
-  });
-  assert.equal(partnerLogin.response.status, 200);
-  const partnerCookie = cookiePair(partnerLogin.response);
+  const partner = await createPartnerWithApprovedOutlet(baseUrl, ownerCookie);
+  const partnerCookie = partner.partnerCookie;
+  const partnerOutletId = partner.outletId;
 
   const duplicateEmployee = await jsonRequest(`${baseUrl}/api/partner/employees`, 'POST', {
-    outletId: defaultOutletId,
+    outletId: partnerOutletId,
     name: 'Kasir Bentrok',
     username: 'kasir.bentrok',
     pin: '1111',
@@ -436,7 +689,7 @@ test('duplicate PIN is rejected when creating or resetting Partner and Employee 
   assert.equal(duplicateEmployee.payload.error, 'PIN sudah digunakan, pilih PIN lain.');
 
   const employee = await jsonRequest(`${baseUrl}/api/partner/employees`, 'POST', {
-    outletId: defaultOutletId,
+    outletId: partnerOutletId,
     name: 'Kasir Aman',
     username: 'kasir.aman',
     pin: '2468',
@@ -452,7 +705,7 @@ test('duplicate PIN is rejected when creating or resetting Partner and Employee 
   assert.equal(duplicateReset.response.status, 409);
   assert.equal(duplicateReset.payload.error, 'PIN sudah digunakan, pilih PIN lain.');
 
-  const oldEmployeeLogin = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/admin/login`, 'POST', {
+  const oldEmployeeLogin = await jsonRequest(`${baseUrl}/api/outlet/${partnerOutletId}/admin/login`, 'POST', {
     username: 'kasir.aman',
     pin: '2468',
   });
@@ -467,7 +720,7 @@ test('duplicate PIN is rejected when creating or resetting Partner and Employee 
 test('duplicate PIN is rejected when rotating Admin or Owner credentials', async (t) => {
   const { baseUrl, defaultOutletId } = await fixture(t);
   const ownerCookie = await loginOwner(baseUrl);
-  await createPartnerAndAssignOutlet(baseUrl, ownerCookie, defaultOutletId);
+  await createPartnerWithApprovedOutlet(baseUrl, ownerCookie);
 
   const duplicateAdmin = await jsonRequest(
     `${baseUrl}/api/outlet/${defaultOutletId}/admin/pin`,
@@ -658,24 +911,10 @@ test('Owner manages one master menu for every current and future outlet', async 
   assert.notEqual(replacementImage.payload.product.imageUrl, uploadedImage.payload.product.imageUrl);
   assert.equal((await fetch(`${baseUrl}${uploadedImage.payload.product.imageUrl}`)).status, 404);
 
-  const partner = await createPartnerAndAssignOutlet(baseUrl, ownerCookie, defaultOutletId);
-  const partnerLogin = await jsonRequest(`${baseUrl}/api/partner/login`, 'POST', {
-    username: 'mitra.jepara',
-    pin: '5678',
-  });
-  const proposed = await jsonRequest(`${baseUrl}/api/partner/outlets`, 'POST', {
-    name: 'MAUCAFE Menu Baru',
-    address: 'Jl. Produk Global',
-  }, cookiePair(partnerLogin.response));
-  await jsonRequest(
-    `${baseUrl}/api/owner/outlets/${proposed.payload.outlet.id}/approve`,
-    'POST',
-    {},
-    ownerCookie,
-  );
+  const partner = await createPartnerWithApprovedOutlet(baseUrl, ownerCookie);
   assert.equal(partner.id.length > 0, true);
   assert.equal(
-    app.stores.get(proposed.payload.outlet.id).store.get().products.some(
+    app.stores.get(partner.outletId).store.get().products.some(
       (product) => product.id === added.payload.product.id && product.imageUrl === replacementImage.payload.product.imageUrl,
     ),
     true,
@@ -704,8 +943,8 @@ test('cancellation requires an authenticated cashier plus Owner approval and pre
   assert.equal(cancelled.payload.order.approvedBy, 'owner');
 });
 
-test('owner session protects reports and returns net sales, tax, and total received separately', async (t) => {
-  const { baseUrl } = await fixture(t);
+test('owner reports and API expose no tax configuration or totals', async (t) => {
+  const { baseUrl, defaultOutletId } = await fixture(t);
   assert.equal((await jsonRequest(`${baseUrl}/api/owner/session`)).payload.authenticated, false);
   const blocked = await jsonRequest(`${baseUrl}/api/owner/multi-summary`);
   assert.equal(blocked.response.status, 401);
@@ -725,8 +964,16 @@ test('owner session protects reports and returns net sales, tax, and total recei
   assert.equal(multiSummary.response.status, 200);
   assert.equal(multiSummary.payload.summaries.length, 2);
   assert.equal(typeof multiSummary.payload.grandTotals.revenue, 'number');
-  assert.equal(typeof multiSummary.payload.grandTotals.tax, 'number');
+  assert.equal('tax' in multiSummary.payload.grandTotals, false);
+  assert.equal(multiSummary.payload.summaries.some((summary) => 'tax' in summary), false);
   assert.equal(typeof multiSummary.payload.grandTotals.received, 'number');
+  const removedTaxRoute = await jsonRequest(
+    `${baseUrl}/api/outlet/${defaultOutletId}/tax-config`,
+    'POST',
+    { enabled: true, label: 'PBJT', rate: 10 },
+    ownerCookie,
+  );
+  assert.equal(removedTaxRoute.response.status, 404);
 
   const logout = await jsonRequest(`${baseUrl}/api/owner/logout`, 'POST', {}, ownerCookie);
   assert.equal(logout.response.status, 200);

@@ -5,6 +5,7 @@
 .partner-main { width: min(100%, 1120px); margin: auto; display: grid; gap: 16px; }
 .partner-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
 .partner-toolbar label { flex: 1; }
+.partner-summary-title { margin: 0; font-size: clamp(18px, 3vw, 24px); }
 .partner-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .partner-metrics article { display: grid; gap: 6px; }
 .partner-metrics span { color: var(--muted); font-size: 12px; font-weight: 800; }
@@ -16,6 +17,10 @@
 .partner-panel.active { display: grid; gap: 16px; }
 .partner-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .partner-grid form, #partner-media-form, #partner-outlet-form { display: grid; gap: 10px; }
+.shift-card { min-width: 0; }
+.shift-status { min-width: 0; display: grid; gap: 4px; margin: 10px 0 14px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-wrap: anywhere; background: var(--paper); }
+.shift-status span { color: var(--muted); font-size: 13px; }
+.shift-card button { width: 100%; white-space: normal; }
 .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .form-grid button { align-self: end; }
 .partner-list { display: grid; gap: 8px; margin-top: 12px; }

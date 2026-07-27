@@ -190,7 +190,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   background: var(--surface);
 }
 
-.media-settings-card, .tax-settings-card, .admin-pin-settings-card {
+.media-settings-card, .admin-pin-settings-card {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 18px;

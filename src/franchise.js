@@ -150,27 +150,6 @@ export function approveOutlet(currentRegistry, outletId, input, now = new Date()
   return { registry, outlet };
 }
 
-export function assignOutletToPartner(currentRegistry, outletId, partnerId, now = new Date().toISOString()) {
-  const registry = normalizeRegistry(currentRegistry);
-  const outlet = findOutlet(registry, outletId);
-  const partner = findPartner(registry, partnerId);
-  for (const candidate of registry.partners) {
-    candidate.outletIds = (candidate.outletIds ?? []).filter((id) => id !== outlet.id);
-  }
-  for (const user of registry.users) {
-    if (user.role === 'partner') user.outletIds = (user.outletIds ?? []).filter((id) => id !== outlet.id);
-  }
-  outlet.partnerId = partner.id;
-  outlet.assignedAt = now;
-  partner.outletIds = [...new Set([...(partner.outletIds ?? []), outlet.id])];
-  for (const user of registry.users) {
-    if (user.role === 'partner' && user.partnerId === partner.id) {
-      user.outletIds = [...new Set([...(user.outletIds ?? []), outlet.id])];
-    }
-  }
-  return { registry, outlet, partner };
-}
-
 export function createEmployee(currentRegistry, input, now = new Date().toISOString()) {
   const registry = normalizeRegistry(currentRegistry);
   const partner = findPartner(registry, input?.partnerId);

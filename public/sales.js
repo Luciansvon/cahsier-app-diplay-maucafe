@@ -15,12 +15,10 @@ export function summarizeSales(orders = [], businessDate, {
   const paymentTotals = { cash: 0, QRIS: 0 };
   const products = new Map();
   let totalCost = 0;
-  let totalTax = 0;
 
   for (const order of counted) {
     const paymentMethod = order.paymentMethod === 'qris' ? 'QRIS' : order.paymentMethod;
-    paymentTotals[paymentMethod] = (paymentTotals[paymentMethod] ?? 0) + (order.grandTotal ?? order.total);
-    totalTax += order.taxAmount ?? 0;
+    paymentTotals[paymentMethod] = (paymentTotals[paymentMethod] ?? 0) + order.total;
     const orderId = order.id || order.queueNumber || order.createdAt;
 
     for (const item of order.items) {
@@ -78,8 +76,7 @@ export function summarizeSales(orders = [], businessDate, {
     margin: revenue - totalCost,
     operatingExpenses,
     netProfit: revenue - totalCost - operatingExpenses,
-    totalTax,
-    grandRevenue: revenue + totalTax,
+    grandRevenue: revenue,
     transactionCount: counted.length,
     paymentTotals,
     products: productList,

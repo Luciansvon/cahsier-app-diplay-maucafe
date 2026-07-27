@@ -34,6 +34,7 @@
         <button id="partner-refresh" class="ghost small-btn" type="button">Muat ulang</button>
       </section>
 
+      <h2 id="partner-summary-title" class="partner-summary-title">Ringkasan Gabungan Semua Outlet</h2>
       <section id="partner-metrics" class="partner-metrics">
         <article class="card"><span>Penjualan Bersih</span><strong id="partner-revenue">Rp0</strong></article>
         <article class="card"><span>Total Diterima</span><strong id="partner-received">Rp0</strong></article>
@@ -52,13 +53,13 @@
 
       <section id="partner-operations" class="partner-panel active">
         <div class="partner-grid">
-          <article class="card">
+          <article class="card shift-card">
             <h2>Shift aktif</h2>
-            <p id="partner-current-shift">Belum ada shift aktif.</p>
+            <div id="partner-current-shift" class="shift-status"><span>Belum ada shift aktif.</span></div>
             <form id="partner-force-close-form" hidden>
               <label class="modal-field"><span>Kas fisik</span><input id="partner-actual-cash" type="number" min="0" required></label>
-              <label class="modal-field"><span>Alasan force close</span><input id="partner-close-reason" maxlength="300" required></label>
-              <button class="danger-btn" type="submit">Force Close Shift</button>
+              <label class="modal-field"><span>Alasan tutup paksa</span><input id="partner-close-reason" maxlength="300" required></label>
+              <button class="danger-btn" type="submit">Tutup Paksa Shift</button>
             </form>
           </article>
           <article class="card">

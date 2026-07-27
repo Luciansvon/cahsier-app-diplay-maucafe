@@ -33,8 +33,8 @@ test('receipt uses the historical order snapshot instead of current menu prices'
   assert.equal(receipt.items[0].unitPrice, 20000);
   assert.equal(receipt.items[0].subtotal, 40000);
   assert.equal(receipt.subtotal, 40000);
-  assert.equal(receipt.tax.amount, 4000);
-  assert.equal(receipt.totalReceived, 44000);
+  assert.equal('tax' in receipt, false);
+  assert.equal(receipt.totalReceived, 40000);
   assert.equal(receipt.paymentMethod, 'QRIS');
   assert.equal(receipt.queueNumber, '007');
   assert.equal('unitCost' in receipt.items[0], false);

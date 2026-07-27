@@ -60,6 +60,7 @@ test('admin exposes an efficient cashier layout, protected live channel, filteri
   assert.match(html, /<button type="button" class="payment active"/);
   assert.match(script, /crypto\.randomUUID\?\.\(\)\s*\?\?/);
   assert.match(script, /showError\(error\.message\s*\|\|\s*'Pembayaran gagal/);
+  assert.doesNotMatch(`${html}\n${script}`, /cart-tax|taxConfig|Pajak|PBJT|PPN/i);
   for (const id of [
     'admin-username-input', 'operations-panel', 'cashier-daily-summary', 'open-shift-form',
     'close-shift-form', 'operation-entry-form', 'inventory-entry-form', 'admin-media-playlist',
@@ -69,35 +70,58 @@ test('admin exposes an efficient cashier layout, protected live channel, filteri
   assert.match(script, /\/shifts\/open/);
   assert.match(script, /\/operations/);
   assert.match(script, /\/inventory/);
+  assert.match(html, /class=["'][^"']*shift-card/);
+  assert.match(html, /class=["'][^"']*shift-status/);
+  assert.match(script, /Saldo awal:/);
+  assert.match(css, /\.shift-status[\s\S]*overflow-wrap:\s*anywhere/);
 });
 
 test('display keeps the 34 percent queue panel, voice opt-in, media fit, and stale/offline protection', async () => {
   const [html, script, css] = await Promise.all([read('display.html'), read('display.js'), read('display.css')]);
-  for (const id of ['display-connection', 'active-number', 'promo-content', 'enable-voice']) {
+  for (const id of [
+    'display-connection', 'active-number', 'enable-voice', 'preparing-status',
+    'preparing-page', 'promo-video', 'promo-image',
+  ]) {
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
+  assert.doesNotMatch(html, /promo-topline|promo-tagline|promo-counter|promo-content|promo-decoration/);
+  assert.doesNotMatch(html, /PROMO OUTLET|MENU PILIHAN|HARI INI/);
   assert.match(script, /EventSource/);
   assert.match(script, /async function syncState/);
   assert.match(script, /setInterval\(syncState,\s*5000\)/);
   assert.match(script, /STALE_AFTER_MS\s*=\s*30_000/);
   assert.match(script, /Nomor antrean sedang diperbarui/);
+  assert.match(script, /preparingQueueNumbers/);
+  assert.match(script, /queueNumberPage/);
+  assert.match(script, /PREPARING_ROTATION_MS\s*=\s*4_000/);
+  assert.match(script, /preparingPageIndex/);
   assert.match(script, /speechSynthesis/);
-  assert.match(script, /import\s*\{\s*normalizeQueueNumber,\s*queueNumberText\s*\}\s*from\s*['"]\.\/queue-number\.js['"]/);
+  assert.match(script, /import\s*\{\s*normalizeQueueNumber,\s*queueNumberPage,\s*queueNumberText\s*\}\s*from\s*['"]\.\/queue-number\.js['"]/);
   assert.match(script, /SpeechSynthesisUtterance\(`Pesanan nomor \$\{queueNumberText\(activeCall\.queueNumber\)\}/);
   assert.match(script, /localStorage/);
   assert.match(script, /objectFit/);
   assert.doesNotMatch(`${html}\n${script}`, /🔊/u);
   assert.match(css, /\.queue-panel[\s\S]*flex:\s*0 0 34%/);
   const queuePanelBlock = css.match(/\.queue-panel\s*\{([^}]*)\}/)?.[1] || '';
-  assert.match(queuePanelBlock, /display:\s*none/);
-  assert.doesNotMatch(queuePanelBlock, /display:\s*flex/);
+  assert.match(queuePanelBlock, /display:\s*flex/);
+  assert.doesNotMatch(queuePanelBlock, /display:\s*none/);
+  assert.match(css, /\.promo-panel\s*\{[\s\S]*flex:\s*0 0 66%/);
+  assert.match(css, /\.promo-panel\s*\{[\s\S]*padding:\s*0/);
+  assert.match(css, /\.promo-video,\s*\.promo-image\s*\{[\s\S]*border-radius:\s*0/);
+  assert.doesNotMatch(css, /has-active-call|promo-topline|promo-decoration/);
   assert.match(css, /aspect-ratio:\s*16\s*\/\s*9/);
   assert.match(css, /\.active-number[\s\S]*font-size:\s*clamp\(88px,\s*min\(15vw,\s*27vh\),\s*260px\)/);
   assert.match(script, /mediaPlaylist/);
   assert.match(script, /advancePlaylist/);
-  assert.match(script, /promoVideo\.pause/);
-  assert.match(css, /\.display-shell\.has-active-call\s+\.queue-panel/);
-  assert.match(css, /\.display-shell:not\(\.has-active-call\)\s+\.promo-panel/);
+  assert.match(script, /renderMedia\(item,\s*playlistIndex,\s*playlist\.length,\s*\{\s*forcePlayback\s*\}\)/);
+  assert.match(script, /forcePlayback[\s\S]*promoVideo\.currentTime\s*=\s*0[\s\S]*promoVideo\.play\(\)/);
+  const announceBlock = script.match(/function announce\(activeCall\)\s*\{[\s\S]*?\n\}\n\nfunction renderMedia/)?.[0] || '';
+  assert.doesNotMatch(announceBlock, /promoVideo\.pause/);
+  assert.doesNotMatch(announceBlock, /promoVideo\.play/);
+  assert.match(announceBlock, /promoVideo\.muted\s*=\s*true/);
+  assert.match(announceBlock, /restorePromoAudio/);
+  assert.match(announceBlock, /window\.setTimeout\(\(\)\s*=>\s*restorePromoAudio\(generation\),\s*15_000\)/);
+  assert.doesNotMatch(announceBlock, /throw error/);
 });
 
 test('owner uses protected owner channels, clear financial labels, responsive tabs, and separated danger settings', async () => {
@@ -116,23 +140,36 @@ test('owner uses protected owner channels, clear financial labels, responsive ta
   assert.match(html, /id=["']new-pin-input["'][^>]*name=["']new-password["'][^>]*autocomplete=["']new-password["']/);
   assert.match(html, /Penjualan Bersih/i);
   assert.match(html, /Total Diterima/i);
+  assert.match(html, /id=["']partner-summary-grid["']/);
+  assert.doesNotMatch(html, /id=["']outlets-grid["']/);
+  assert.match(html, /Ringkasan per Mitra/i);
   assert.match(html, /Zona Bahaya/i);
   assert.match(html, /<dialog[^>]+id=["']change-pin-modal["']/);
   assert.match(html, /<dialog[^>]+id=["']menu-mgmt-modal["']/);
   assert.doesNotMatch(html, /\sstyle=/);
   assert.match(script, /\/api\/owner\/login/);
   assert.match(script, /\/api\/owner\/multi-summary/);
+  assert.match(script, /partnerSummaries/);
+  assert.match(script, /Saldo Cup/);
+  assert.match(script, /inventory\?\.balance/);
+  assert.match(script, /pendingOutletCount/);
+  assert.match(script, /Outlet tanpa Mitra/);
+  assert.match(script, /expandedPartnerIds/);
   assert.match(script, /\/owner\/events/);
   assert.match(script, /\/admin\/pin/);
   assert.match(script, /\/api\/owner\/logout/);
+  assert.doesNotMatch(script, /\/api\/owner\/outlets\/\$\{outlet\.id\}\/assign/);
   assert.match(script, /async function handleExportExcel/);
   assert.match(script, /showError\(error\.message\)/);
   assert.doesNotMatch(script, /sessionStorage/);
   assert.doesNotMatch(script, /innerHTML/);
+  assert.doesNotMatch(`${html}\n${script}`, /tax-config|Pajak|PBJT|PPN/i);
   assert.match(baseCss, /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
   assert.match(baseCss, /body:has\(dialog\[open\]\)\s*\{\s*overflow:\s*hidden/);
   assert.match(css, /@media\s*\(max-width:\s*700px\)[\s\S]*\.owner-tab-bar/);
   assert.match(css, /@media\s*\(max-width:\s*480px\)[\s\S]*\.outlet-selector-wrapper\s*\{[^}]*flex:\s*none/);
+  assert.match(css, /\.partner-summary-card/);
+  assert.match(css, /\.partner-outlet-list/);
 });
 
 test('Partner page covers scoped outlets, employees, shifts, cup, expenses, reports, and media', async () => {
@@ -150,6 +187,13 @@ test('Partner page covers scoped outlets, employees, shifts, cup, expenses, repo
   assert.match(script, /\/api\/partner\/dashboard/);
   assert.match(script, /\/api\/partner\/employees/);
   assert.match(script, /\/api\/partner\/outlets/);
+  assert.match(html, /Ringkasan Gabungan/i);
+  assert.match(script, /dashboard\.summary/);
+  assert.match(html, /Tutup Paksa Shift/);
+  assert.match(html, /class=["'][^"']*shift-card/);
+  assert.match(html, /class=["'][^"']*shift-status/);
+  assert.match(script, /Kasir:/);
+  assert.match(css, /\.shift-status[\s\S]*overflow-wrap:\s*anywhere/);
   assert.match(script, /\/operations/);
   assert.match(script, /\/inventory/);
   assert.match(script, /\/media\/upload/);

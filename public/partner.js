@@ -83,15 +83,25 @@ function renderOutlets() {
 
 function renderMetrics() {
   const outlet = selectedOutlet();
-  $('#partner-revenue').textContent = rupiah(outlet?.revenue);
-  $('#partner-received').textContent = rupiah(outlet?.received);
-  $('#partner-gross-profit').textContent = rupiah(outlet?.grossProfit);
-  $('#partner-expenses').textContent = rupiah(outlet?.operatingExpenses);
-  $('#partner-net-profit').textContent = rupiah(outlet?.netProfit);
-  $('#partner-cup-balance').textContent = String(outlet?.inventory?.balance ?? 0);
-  $('#partner-current-shift').textContent = outlet?.currentShift
-    ? `${outlet.currentShift.label} · ${outlet.currentShift.employeeName} · saldo awal ${rupiah(outlet.currentShift.openingCash)}`
-    : 'Belum ada shift aktif.';
+  const summary = dashboard.summary;
+  $('#partner-summary-title').textContent = `Ringkasan Gabungan ${summary?.outletCount ?? 0} Outlet Aktif`;
+  $('#partner-revenue').textContent = rupiah(summary?.revenue);
+  $('#partner-received').textContent = rupiah(summary?.received);
+  $('#partner-gross-profit').textContent = rupiah(summary?.grossProfit);
+  $('#partner-expenses').textContent = rupiah(summary?.operatingExpenses);
+  $('#partner-net-profit').textContent = rupiah(summary?.netProfit);
+  $('#partner-cup-balance').textContent = String(summary?.inventory?.balance ?? 0);
+  const shiftStatus = $('#partner-current-shift');
+  shiftStatus.replaceChildren();
+  if (outlet?.currentShift) {
+    shiftStatus.append(
+      element('strong', '', outlet.currentShift.label),
+      element('span', '', `Kasir: ${outlet.currentShift.employeeName}`),
+      element('span', '', `Saldo awal: ${rupiah(outlet.currentShift.openingCash)}`),
+    );
+  } else {
+    shiftStatus.append(element('span', '', 'Belum ada shift aktif.'));
+  }
   $('#partner-force-close-form').hidden = !outlet?.currentShift;
 }
 

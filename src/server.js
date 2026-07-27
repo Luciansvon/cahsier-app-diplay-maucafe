@@ -21,12 +21,10 @@ import {
   updateOwnerPin,
   updateProduct,
   updatePromoMedia,
-  updateTaxConfig,
   verifyOwnerPin,
 } from './queue.js';
 import {
   approveOutlet,
-  assignOutletToPartner,
   authenticateUser,
   createEmployee,
   createPartner,
@@ -169,6 +167,10 @@ function displayState(state) {
   return {
     products: (state.products ?? []).filter((product) => product.active !== false).map(publicProduct),
     activeCall: state.activeCall ? structuredClone(state.activeCall) : null,
+    preparingQueueNumbers: (state.orders ?? [])
+      .filter((order) => order.status === 'waiting')
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+      .map((order) => String(order.queueNumber)),
     promoMedia: state.promoMedia ? structuredClone(state.promoMedia) : null,
     mediaPlaylist: structuredClone(state.mediaPlaylist ?? []),
     revision: state.revision ?? 0,
@@ -190,12 +192,10 @@ function cashierState(state) {
     activeCall: state.activeCall ? structuredClone(state.activeCall) : null,
     promoMedia: state.promoMedia ? structuredClone(state.promoMedia) : null,
     mediaPlaylist: structuredClone(state.mediaPlaylist ?? []),
-    taxConfig: structuredClone(state.taxConfig ?? { enabled: false, label: 'Pajak', rate: 10 }),
     currentShift: structuredClone((state.shifts ?? []).find((shift) => shift.status === 'open') ?? null),
     dailySummary: {
       businessDate,
       revenue: daily.revenue,
-      totalTax: daily.totalTax,
       received: daily.grandRevenue,
       transactionCount: daily.transactionCount,
       paymentTotals: structuredClone(daily.paymentTotals),
@@ -362,7 +362,10 @@ function normalizeOutletState(rawState, initialState) {
   ensure('nextQueueNumber', 1);
   ensure('activeCall', null);
   ensure('promoMedia', initialState.promoMedia ?? { type: 'video', url: '/media/promo.mp4', filename: 'promo.mp4', fit: 'cover' });
-  ensure('taxConfig', initialState.taxConfig ?? { enabled: false, label: 'Pajak', rate: 10 });
+  if ('taxConfig' in state) {
+    delete state.taxConfig;
+    changed = true;
+  }
   ensure('revision', 0);
   if (!Number.isSafeInteger(state.nextCallEventId) || state.nextCallEventId < 1) {
     // Legacy displays may still remember an old eventId in localStorage. A timestamp-based
@@ -1019,7 +1022,6 @@ export async function createQueueServer({
             businessDate: reportDate,
             revenue: summary.revenue,
             received: summary.grandRevenue,
-            tax: summary.totalTax,
             cost: summary.totalCost,
             grossProfit: summary.margin,
             operatingExpenses: summary.operatingExpenses,
@@ -1032,10 +1034,40 @@ export async function createQueueServer({
             shifts: structuredClone((state.shifts ?? []).slice(-10)),
           });
         }
+        const activeOutlets = outlets.filter((outlet) => outlet.status === 'active');
+        const summary = activeOutlets.reduce((totals, outlet) => ({
+          outletCount: totals.outletCount + 1,
+          revenue: totals.revenue + outlet.revenue,
+          received: totals.received + outlet.received,
+          cost: totals.cost + outlet.cost,
+          grossProfit: totals.grossProfit + outlet.grossProfit,
+          operatingExpenses: totals.operatingExpenses + outlet.operatingExpenses,
+          netProfit: totals.netProfit + outlet.netProfit,
+          transactionCount: totals.transactionCount + outlet.transactionCount,
+          paymentTotals: {
+            cash: totals.paymentTotals.cash + outlet.paymentTotals.cash,
+            QRIS: totals.paymentTotals.QRIS + outlet.paymentTotals.QRIS,
+          },
+          inventory: {
+            balance: totals.inventory.balance + outlet.inventory.balance,
+          },
+        }), {
+          outletCount: 0,
+          revenue: 0,
+          received: 0,
+          cost: 0,
+          grossProfit: 0,
+          operatingExpenses: 0,
+          netProfit: 0,
+          transactionCount: 0,
+          paymentTotals: { cash: 0, QRIS: 0 },
+          inventory: { balance: 0 },
+        });
         sendJson(response, 200, {
           partner: structuredClone(partner),
           user: safeRegistry(registry).users.find((candidate) => candidate.id === session.userId),
           outlets,
+          summary,
           employees: safeRegistry(registry).users.filter((user) => (
             user.role === 'employee' && user.partnerId === session.partnerId
           )),
@@ -1201,27 +1233,6 @@ export async function createQueueServer({
         return;
       }
 
-      const ownerAssignOutlet = path.match(/^\/api\/owner\/outlets\/([^/]+)\/assign$/);
-      if (request.method === 'POST' && ownerAssignOutlet) {
-        if (!ownerSession(request)) {
-          sendJson(response, 401, { error: 'Sesi Owner diperlukan.' });
-          return;
-        }
-        const body = await readJson(request);
-        const output = await mutateRegistry(
-          (current) => assignOutletToPartner(current, ownerAssignOutlet[1], body.partnerId),
-          {
-            actorType: 'owner',
-            actorId: 'owner',
-            action: 'outlet.assign',
-            outletId: ownerAssignOutlet[1],
-            metadata: { partnerId: body.partnerId },
-          },
-        );
-        sendJson(response, 200, { outlet: safeRegistry(registry).outlets.find((outlet) => outlet.id === output.outlet.id) });
-        return;
-      }
-
       const ownerApproveOutlet = path.match(/^\/api\/owner\/outlets\/([^/]+)\/approve$/);
       if (request.method === 'POST' && ownerApproveOutlet) {
         if (!ownerSession(request)) {
@@ -1380,7 +1391,6 @@ export async function createQueueServer({
         const summaries = [];
         let grandRevenue = 0;
         let grandReceived = 0;
-        let grandTax = 0;
         let grandCost = 0;
         let grandMargin = 0;
         let grandOperatingExpenses = 0;
@@ -1395,11 +1405,13 @@ export async function createQueueServer({
             operationalEntries: state.operationalEntries ?? [],
           });
           const activeCount = state.orders.filter((o) => ['waiting', 'ready'].includes(o.status)).length;
+          const inventory = inventorySummary(state, reportDate);
 
           summaries.push({
             id: outlet.id,
             name: outlet.name,
             address: outlet.address,
+            partnerId: outlet.partnerId ?? null,
             businessDate: reportDate,
             revenue: summary.revenue,
             received: summary.grandRevenue,
@@ -1409,14 +1421,13 @@ export async function createQueueServer({
             margin: summary.margin,
             operatingExpenses: summary.operatingExpenses,
             netProfit: summary.netProfit,
-            tax: summary.totalTax,
             salesCount: summary.transactionCount,
             activeCount,
+            inventory,
           });
 
           grandRevenue += summary.revenue;
           grandReceived += summary.grandRevenue;
-          grandTax += summary.totalTax;
           grandCost += summary.totalCost;
           grandMargin += summary.margin;
           grandOperatingExpenses += summary.operatingExpenses;
@@ -1425,12 +1436,70 @@ export async function createQueueServer({
           grandActiveCount += activeCount;
         }
 
+        const aggregateOutlets = ({
+          id,
+          name,
+          outlets,
+          pendingOutletCount = 0,
+        }) => outlets.reduce((totals, outlet) => ({
+          ...totals,
+          outletCount: totals.outletCount + 1,
+          revenue: totals.revenue + outlet.revenue,
+          received: totals.received + outlet.received,
+          cash: totals.cash + outlet.cash,
+          qris: totals.qris + outlet.qris,
+          cost: totals.cost + outlet.cost,
+          margin: totals.margin + outlet.margin,
+          operatingExpenses: totals.operatingExpenses + outlet.operatingExpenses,
+          netProfit: totals.netProfit + outlet.netProfit,
+          salesCount: totals.salesCount + outlet.salesCount,
+          activeCount: totals.activeCount + outlet.activeCount,
+          inventory: {
+            balance: totals.inventory.balance + outlet.inventory.balance,
+          },
+        }), {
+          id,
+          name,
+          outletCount: 0,
+          pendingOutletCount,
+          revenue: 0,
+          received: 0,
+          cash: 0,
+          qris: 0,
+          cost: 0,
+          margin: 0,
+          operatingExpenses: 0,
+          netProfit: 0,
+          salesCount: 0,
+          activeCount: 0,
+          inventory: { balance: 0 },
+        });
+        const partnerSummaries = registry.partners
+          .filter((partner) => partner.active !== false)
+          .map((partner) => aggregateOutlets({
+            id: partner.id,
+            name: partner.name,
+            outlets: summaries.filter((outlet) => outlet.partnerId === partner.id),
+            pendingOutletCount: outletsConfig.filter((outlet) => (
+              outlet.partnerId === partner.id && outlet.status === 'pending'
+            )).length,
+          }));
+        const unassignedOutlets = summaries.filter((outlet) => !outlet.partnerId);
+        const unassignedSummary = unassignedOutlets.length
+          ? aggregateOutlets({
+            id: 'unassigned',
+            name: 'Outlet tanpa Mitra',
+            outlets: unassignedOutlets,
+          })
+          : null;
+
         sendJson(response, 200, {
           summaries,
+          partnerSummaries,
+          unassignedSummary,
           grandTotals: {
             revenue: grandRevenue,
             received: grandReceived,
-            tax: grandTax,
             cost: grandCost,
             margin: grandMargin,
             operatingExpenses: grandOperatingExpenses,
@@ -2103,17 +2172,6 @@ export async function createQueueServer({
           await unlink(filePath).catch(() => {});
           throw error;
         }
-        return;
-      }
-
-      if (request.method === 'POST' && subPath === '/tax-config') {
-        const body = await readJson(request);
-        if (!ownerSession(request)) {
-          sendJson(response, 401, { error: 'Sesi berakhir, masukkan PIN lagi.' });
-          return;
-        }
-        const { state: nextState, output } = await mutate(outletId, (current) => updateTaxConfig(current, body));
-        sendJson(response, 200, { state: ownerState(nextState), taxConfig: output.taxConfig });
         return;
       }
 

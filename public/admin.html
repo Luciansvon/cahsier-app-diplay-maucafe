@@ -87,7 +87,6 @@
             <div id="cart-items" class="cart-items"><p class="empty-state">Belum ada menu dipilih.</p></div>
             <div class="cart-totals">
               <div class="cart-total-row"><span>Subtotal</span><strong id="cart-subtotal">Rp0</strong></div>
-              <div id="cart-tax-row" class="cart-total-row" hidden><span id="cart-tax-label">Pajak 10%</span><strong id="cart-tax-amount">Rp0</strong></div>
               <div class="cart-total-row cart-grand-total"><span>Total</span><strong id="cart-total">Rp0</strong></div>
             </div>
             <div class="payment-grid" role="group" aria-label="Metode pembayaran">
@@ -121,9 +120,9 @@
           <article class="card"><span>Transaksi</span><strong id="cashier-daily-transactions">0</strong></article>
         </div>
         <div class="operations-grid">
-          <section class="card">
+          <section class="card shift-card">
             <h3>Status Shift</h3>
-            <p id="current-shift-label">Belum ada shift aktif.</p>
+            <div id="current-shift-label" class="shift-status"><span>Belum ada shift aktif.</span></div>
             <form id="open-shift-form">
               <label class="modal-field"><span>Nama shift</span><input id="shift-label" value="Pagi" maxlength="60" required></label>
               <label class="modal-field"><span>Saldo awal kas</span><input id="shift-opening-cash" type="number" min="0" value="0" required></label>
