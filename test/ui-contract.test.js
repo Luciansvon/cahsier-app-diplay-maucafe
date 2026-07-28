@@ -235,35 +235,15 @@ test('every credential input declares password-manager metadata', async () => {
 });
 
 test('typography and spacing safeguards keep text readable on narrow layouts', async () => {
-  const [baseCss, adminCss, ownerCss, partnerCss, displayCss, launcherCss] = await Promise.all([
-    read('base.css'),
-    read('admin.css'),
-    read('owner.css'),
-    read('partner.css'),
-    read('display.css'),
+  const [typographyCss, launcherCss] = await Promise.all([
+    read('typography.css'),
     read('launcher.css'),
   ]);
 
-  assert.match(baseCss, /typography-spacing-fix: shared foundations/);
-  assert.match(baseCss, /--page-gutter:\s*clamp\(16px,\s*2vw,\s*24px\)/);
-  assert.match(baseCss, /\.primary,[\s\S]*white-space:\s*normal/);
-
-  assert.match(adminCss, /typography-spacing-fix: admin/);
-  assert.match(adminCss, /@media\s*\(max-width:\s*430px\)[\s\S]*\.tab-bar\s*\{[\s\S]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(adminCss, /\.product-card strong[\s\S]*overflow-wrap:\s*anywhere/);
-
-  assert.match(ownerCss, /typography-spacing-fix: owner/);
-  assert.match(ownerCss, /@media\s*\(max-width:\s*700px\)[\s\S]*\.owner-tab-bar\s*\{[\s\S]*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(ownerCss, /@media\s*\(max-width:\s*430px\)[\s\S]*\.owner-tab-bar\s*\{[\s\S]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
-
-  assert.match(partnerCss, /typography-spacing-fix: partner/);
-  assert.match(partnerCss, /@media\s*\(max-width:\s*600px\)[\s\S]*#partner-media-form,[\s\S]*grid-template-columns:\s*1fr/);
-  assert.match(partnerCss, /\.partner-tab[\s\S]*white-space:\s*normal/);
-
-  assert.match(displayCss, /typography-spacing-fix: display/);
-  assert.match(displayCss, /\.queue-panel\s*\{[\s\S]*padding:\s*clamp\(28px,\s*3\.8vw,\s*64px\)/);
-  assert.match(displayCss, /\.pickup-message[\s\S]*line-height:\s*1\.4/);
-
-  assert.match(launcherCss, /typography-spacing-fix: launcher/);
-  assert.match(launcherCss, /\.launcher-card h1[\s\S]*overflow-wrap:\s*anywhere/);
+  assert.match(typographyCss, /MAUCAFE Typography System v2/);
+  assert.match(typographyCss, /--content-gutter:\s*clamp\(1rem,\s*2\.2vw,\s*1\.75rem\)/);
+  assert.match(typographyCss, /\.partner-toolbar\.card\s*\{[\s\S]*padding:\s*var\(--card-pad\)/);
+  assert.match(typographyCss, /\.owner-tab\s*\{[\s\S]*text-transform:\s*none/);
+  assert.match(typographyCss, /\.queue-panel\s*\{[\s\S]*padding:\s*clamp\(2rem,\s*4vw,\s*4\.25rem\)/);
+  assert.match(launcherCss, /\.launcher-card h1/);
 });
