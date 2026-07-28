@@ -807,3 +807,51 @@ Proses server lokal Node.js di background masih menjalankan instance server lama
 - `node --test test/owner-bulk-products.test.js`: PASS (7/7 tests pass).
 - `npm test`: PASS (116/116 tests pass).
 - Waktu: 2026-07-28T12:46:00.000Z
+
+## UI-DISPLAY-MEDIA-CROP-2026-07-28 - Gambar Iklan Terpotong di Layar Display TV (/outlet/:outletId/display)
+
+### Kondisi/gejala
+
+Pada halaman `/outlet/:outletId/display`, gambar iklan promosi terpotong di bagian kiri dan kanan. Teks atau harga pada gambar 16:9 atau poster menjadi tidak terbaca penuh.
+
+### Root cause
+
+- `public/display.css` memaksa `.promo-image` dan `.promo-video` menggunakan `object-fit: cover`.
+- `public/display.js` menggunakan `cover` sebagai fallback default.
+- Panel promosi TV hanya memiliki 66% lebar layar (panel antrean 34%), sehingga rasio area promo lebih tinggi/sempit daripada gambar standar 16:9.
+- Form upload media Owner dan Mitra menjadikan "Isi layar / crop" (`cover`) sebagai pilihan default.
+- Media lama belum memiliki penanda apakah `crop` benar-benar dipilih oleh pengguna atau hanya berasal dari fallback lama.
+
+### Solusi
+
+- Memperbarui `src/media.js` agar media baru menyimpan `fit: 'contain'` secara default dan `fitVersion: 2`.
+- Memperbarui form upload di `public/owner.html` dan `public/partner.html` dengan opsi `contain` ("Tampilkan penuh") sebagai pilihan pertama/default.
+- Menambahkan element `#promo-backdrop` di `public/display.html` dan CSS `display-media-safe-fit-v2` di `public/display.css` untuk menampilkan blurred backdrop dari gambar yang sama saat gambar ditampilkan dalam mode `contain`.
+- Mengatur `object-fit: contain` pada `.promo-image` di CSS dan `object-fit: cover` pada `.promo-video`.
+- Memperbarui `public/display.js` dengan fungsi `resolvedMediaFit` (mengubah media gambar lama tanpa `fitVersion === 2` menjadi `contain`) dan `setImageBackdrop` untuk mengelola blurred backdrop.
+- Menambahkan listener error gambar pada `promoImage` untuk membersihkan backdrop dan berpindah ke media berikutnya.
+- Naikkan cache key CSS (`display.css?v=5`) dan JS (`display.js?v=5`).
+
+### Kompatibilitas media lama
+
+- Gambar lama (tanpa `fitVersion === 2`) otomatis dirender sebagai `contain` tanpa terpotong.
+- Gambar baru dengan pilihan explicit crop (`fit === 'cover'` dan `fitVersion === 2`) tetap ditampilkan sebagai `cover`.
+- Video tetap mengikuti pilihan `contain` atau `cover` yang tersimpan.
+
+### Regression test
+
+- Dibuat pengujian otomatis di `test/display-media-fit.test.js` untuk memverifikasi:
+  1. Media baru secara default menyimpan `fit: 'contain'` dan `fitVersion: 2`.
+  2. Gambar baru dengan pilihan crop menyimpan `fit: 'cover'` dan `fitVersion: 2`.
+  3. `display.html`, `display.css`, dan `display.js` memuat marker `display-media-safe-fit-v2`, `id="promo-backdrop"`, `v=5`, `blur(26px)`, dan logic fallback `fitVersion !== 2`.
+  4. Form upload Owner dan Mitra memiliki `contain` sebagai opsi pertama.
+
+### Bukti verifikasi aktual
+
+- `node --check public/display.js`: PASS
+- `node --check test/display-media-fit.test.js`: PASS
+- `npm test`: PASS (119 tests passing)
+- `npm run build`: PASS (Aset web dist/ berhasil dibuat)
+- `git diff --check`: PASS (Tanpa whitespace error)
+- Visual Smoke Test (1920x1080, 1366x768, 1280x720): PASS (Seluruh teks/harga terlihat penuh, aspect ratio tidak terdistorsi, blurred backdrop aktif tanpa menutupi foreground, proporsi 34% antrean dan 66% promo tetap presisi).
+- Waktu: 2026-07-28T13:30:00.000Z

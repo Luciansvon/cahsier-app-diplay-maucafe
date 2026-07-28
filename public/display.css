@@ -24,6 +24,63 @@
 .display-controls .connection { border-color: rgb(255 255 255 / 35%); color: #fff; background: rgb(0 0 0 / 18%); }
 .voice-button { min-height: 42px; border: 1px solid rgb(255 255 255 / 45%); border-radius: 999px; padding: 7px 14px; color: #fff; background: transparent; font-size: clamp(11px, 1vw, 14px); font-weight: 800; }
 .voice-button.enabled { border-color: #a9e3c8; color: #d9f8e9; background: rgb(13 91 61 / 42%); }
-.promo-panel { position: relative; flex: 0 0 66%; min-width: 0; overflow: hidden; padding: 0; background: #000; }
-.promo-wrapper { position: absolute; inset: 0; }
-.promo-video, .promo-image { display: block; width: 100%; height: 100%; max-height: 100%; border-radius: 0; object-fit: cover; background: #000; }
+/* display-media-safe-fit-v2 */
+
+.promo-panel {
+  position: relative;
+  flex: 0 0 66%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  background: #0c0908;
+}
+
+.promo-wrapper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: #0c0908;
+}
+
+.promo-backdrop {
+  position: absolute;
+  inset: -4%;
+  z-index: 0;
+  opacity: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter:
+    blur(26px)
+    brightness(.48)
+    saturate(.9);
+  transform: scale(1.08);
+  transition: opacity .2s ease;
+  pointer-events: none;
+}
+
+.promo-wrapper.has-image-backdrop .promo-backdrop {
+  opacity: .88;
+}
+
+.promo-video,
+.promo-image {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  border-radius: 0;
+  object-position: center;
+  background: transparent;
+}
+
+.promo-video {
+  object-fit: cover;
+}
+
+.promo-image {
+  object-fit: contain;
+}

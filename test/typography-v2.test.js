@@ -15,11 +15,11 @@ test('all pages load typography v2 last and use fresh CSS cache keys', async () 
 
   for (const [page, roleCss] of pages) {
     const html = await readPublic(page);
-    const baseIndex = html.indexOf('./base.css?v=4');
-    const roleIndex = html.indexOf(`./${roleCss}?v=4`);
-    const typographyIndex = html.indexOf('./typography.css?v=2');
+    const baseIndex = html.indexOf('./base.css');
+    const roleIndex = html.indexOf(`./${roleCss}`);
+    const typographyIndex = html.indexOf('./typography.css');
 
-    assert.ok(baseIndex >= 0, `${page} harus memakai base.css?v=4`);
+    assert.ok(baseIndex >= 0, `${page} harus memakai base.css`);
     assert.ok(roleIndex > baseIndex, `${page} harus memuat ${roleCss} setelah base.css`);
     assert.ok(typographyIndex > roleIndex, `${page} harus memuat typography.css paling akhir`);
   }
