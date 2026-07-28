@@ -24,8 +24,6 @@ export function buildReceipt({ order, outlet }) {
     };
   });
   const subtotal = requireMoney(order.total, 'subtotal');
-  const taxAmount = requireMoney(order.taxAmount ?? 0, 'pajak');
-  const totalReceived = requireMoney(order.grandTotal ?? subtotal + taxAmount, 'total diterima');
 
   return {
     receiptId: requireText(order.id, 'ID transaksi'),
@@ -38,12 +36,7 @@ export function buildReceipt({ order, outlet }) {
     },
     items,
     subtotal,
-    tax: {
-      label: order.taxLabel ? String(order.taxLabel) : null,
-      rate: Number(order.taxRate ?? 0),
-      amount: taxAmount,
-    },
-    totalReceived,
+    totalReceived: subtotal,
     paymentMethod: order.paymentMethod === 'cash' ? 'Tunai' : requireText(order.paymentMethod, 'metode pembayaran'),
   };
 }

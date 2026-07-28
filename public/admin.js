@@ -9,7 +9,6 @@ let state = {
   activeCall: null,
   promoMedia: null,
   mediaPlaylist: [],
-  taxConfig: null,
   currentShift: null,
   dailySummary: null,
 };
@@ -191,10 +190,18 @@ function renderOperations() {
   if ($('#cashier-daily-qris')) $('#cashier-daily-qris').textContent = rupiah(summary.paymentTotals?.QRIS);
   if ($('#cashier-daily-transactions')) $('#cashier-daily-transactions').textContent = String(summary.transactionCount ?? 0);
   const current = state.currentShift;
-  if ($('#current-shift-label')) {
-    $('#current-shift-label').textContent = current
-      ? `${current.label} · ${current.employeeName} · saldo awal ${rupiah(current.openingCash)}`
-      : 'Belum ada shift aktif.';
+  const shiftStatus = $('#current-shift-label');
+  if (shiftStatus) {
+    shiftStatus.replaceChildren();
+    if (current) {
+      shiftStatus.append(
+        element('strong', '', current.label),
+        element('span', '', `Kasir: ${current.employeeName}`),
+        element('span', '', `Saldo awal: ${rupiah(current.openingCash)}`),
+      );
+    } else {
+      shiftStatus.append(element('span', '', 'Belum ada shift aktif.'));
+    }
   }
   if ($('#open-shift-form')) $('#open-shift-form').hidden = Boolean(current);
   if ($('#close-shift-form')) $('#close-shift-form').hidden = !current;
@@ -270,9 +277,7 @@ function cartTotals() {
     subtotal += product.price * quantity;
     itemCount += quantity;
   }
-  const tax = state.taxConfig;
-  const taxAmount = tax?.enabled ? Math.round(subtotal * (tax.rate ?? 0) / 100) : 0;
-  return { subtotal, taxAmount, grandTotal: subtotal + taxAmount, itemCount };
+  return { subtotal, grandTotal: subtotal, itemCount };
 }
 
 function renderCart() {
@@ -309,14 +314,8 @@ function renderCart() {
   }
   if (!cart.size) container.append(element('p', 'empty-state', 'Belum ada menu dipilih.'));
 
-  const { subtotal, taxAmount, grandTotal, itemCount } = cartTotals();
+  const { subtotal, grandTotal, itemCount } = cartTotals();
   $('#cart-subtotal').textContent = rupiah(subtotal);
-  const taxRow = $('#cart-tax-row');
-  if (state.taxConfig?.enabled) {
-    taxRow.hidden = false;
-    $('#cart-tax-label').textContent = `${state.taxConfig.label || 'Pajak'} ${state.taxConfig.rate}%`;
-    $('#cart-tax-amount').textContent = rupiah(taxAmount);
-  } else taxRow.hidden = true;
   $('#cart-total').textContent = rupiah(grandTotal);
 
   const checkout = $('#checkout');

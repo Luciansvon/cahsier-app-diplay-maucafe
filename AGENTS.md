@@ -55,7 +55,6 @@ Boleh:
 
 - semua laporan/outlet state internal;
 - CRUD produk/HPP;
-- pajak;
 - PIN Admin per outlet;
 - PIN Owner global;
 - operasi reset/purge/clear;
@@ -74,7 +73,7 @@ Authorization wajib dilakukan server-side. Menyembunyikan tombol frontend bukan 
 
 ## Order dan laporan
 
-Server adalah source of truth untuk harga, HPP snapshot, tax, total, status, dan queue number.
+Server adalah source of truth untuk harga, HPP snapshot, total, status, dan queue number.
 
 Client hanya mengirim product ID + quantity + payment method untuk order.
 
@@ -92,9 +91,8 @@ Laporan historis tidak boleh berubah ketika produk saat ini diedit.
 
 Definisi finansial jangan dicampur:
 
-- Penjualan Bersih = subtotal sebelum pajak;
-- Pajak Terkumpul = tax;
-- Total Diterima = penjualan bersih + pajak;
+- Penjualan Bersih = subtotal transaksi dibayar;
+- Total Diterima = penjualan bersih;
 - payment totals = uang yang benar-benar diterima per metode.
 
 ## Queue/display

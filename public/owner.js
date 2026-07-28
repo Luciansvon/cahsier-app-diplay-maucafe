@@ -16,6 +16,7 @@ let reportDate = null;
 let events = null;
 let pollingTimer = null;
 let isConnected = false;
+const expandedPartnerIds = new Set();
 
 const $ = (selector) => document.querySelector(selector);
 const rupiah = (value) => new Intl.NumberFormat('id-ID', {
@@ -206,29 +207,8 @@ function renderFranchise() {
       element('strong', '', outlet.name),
       element('small', '', `${outlet.address} · ${outlet.status === 'pending' ? 'Menunggu approval' : 'Aktif'}`),
     );
-    const partnerSelect = element('select', 'outlet-dropdown');
-    const empty = element('option', '', 'Belum ditugaskan');
-    empty.value = '';
-    partnerSelect.append(empty);
-    for (const partner of registry.partners.filter((candidate) => candidate.active !== false)) {
-      const option = element('option', '', partner.name);
-      option.value = partner.id;
-      partnerSelect.append(option);
-    }
-    partnerSelect.value = outlet.partnerId ?? '';
-    const assign = element('button', 'ghost small-btn', 'Simpan Mitra');
-    assign.type = 'button';
-    assign.disabled = !partnerSelect.value;
-    partnerSelect.addEventListener('change', () => { assign.disabled = !partnerSelect.value; });
-    assign.addEventListener('click', async () => {
-      await request(`/api/owner/outlets/${outlet.id}/assign`, {
-        method: 'POST',
-        body: JSON.stringify({ partnerId: partnerSelect.value }),
-      });
-      toast('Penugasan outlet disimpan');
-      await loadFranchise();
-    });
-    row.append(info, partnerSelect, assign);
+    const partner = registry.partners.find((candidate) => candidate.id === outlet.partnerId);
+    row.append(info, element('span', 'status-pill', partner?.name ?? 'Outlet lama'));
     if (outlet.status === 'pending') {
       const approve = element('button', 'primary small-btn', 'Setujui');
       approve.type = 'button';
@@ -334,40 +314,81 @@ function renderMultiSummary(data) {
   if (grandSales) grandSales.textContent = String(data.grandTotals.salesCount);
   if (grandActive) grandActive.textContent = String(data.grandTotals.activeCount);
 
-  const grid = $('#outlets-grid');
+  const grid = $('#partner-summary-grid');
   if (!grid) return;
   grid.replaceChildren();
 
-  data.summaries.forEach((summary) => {
-    const card = element('article', 'card outlet-card');
+  const groups = [...(data.partnerSummaries ?? [])];
+  if (data.unassignedSummary) {
+    groups.push({
+      ...data.unassignedSummary,
+      name: data.unassignedSummary.name || 'Outlet tanpa Mitra',
+    });
+  }
 
-    const top = element('div', 'outlet-card-header');
-    top.append(element('h3', '', summary.name), element('span', 'outlet-address-tag', summary.address));
-
+  groups.forEach((summary) => {
+    const card = element('article', 'card partner-summary-card');
+    const heading = element('div', 'partner-summary-heading');
+    const title = element('div', 'partner-summary-title');
+    title.append(
+      element('h3', '', summary.name),
+      element(
+        'small',
+        '',
+        `${summary.outletCount} outlet aktif · ${summary.pendingOutletCount || 0} pending`,
+      ),
+    );
     const metrics = element('div', 'outlet-card-metrics');
+    for (const [label, value, className = ''] of [
+      ['Total Diterima', rupiah(summary.received), 'text-success'],
+      ['Profit Bersih', rupiah(summary.netProfit), 'text-profit'],
+      ['Transaksi', String(summary.salesCount)],
+      ['Antrean Aktif', String(summary.activeCount)],
+      ['Saldo Cup', String(summary.inventory?.balance ?? 0)],
+    ]) {
+      const metric = element('div', 'outlet-card-metric');
+      metric.append(element('span', '', label), element('strong', className, value));
+      metrics.append(metric);
+    }
 
-    const m1 = element('div', 'outlet-card-metric');
-    m1.append(element('span', '', 'Total Diterima'), element('strong', 'text-success', rupiah(summary.received ?? (summary.revenue + (summary.tax || 0)))));
+    const outletList = element('div', 'partner-outlet-list');
+    outletList.hidden = !expandedPartnerIds.has(summary.id);
+    data.summaries
+      .filter((outlet) => (
+        summary.id === 'unassigned'
+          ? !outlet.partnerId
+          : outlet.partnerId === summary.id
+      ))
+      .forEach((outlet) => {
+        const row = element('article', 'partner-outlet-row');
+        const info = element('div');
+        info.append(
+          element('strong', '', outlet.name),
+          element('small', '', outlet.address),
+        );
+        const detail = element('button', 'primary small-btn', 'Lihat Outlet');
+        detail.type = 'button';
+        detail.addEventListener('click', () => selectOutlet(outlet.id));
+        row.append(info, detail);
+        outletList.append(row);
+      });
 
-    const m2 = element('div', 'outlet-card-metric');
-    m2.append(element('span', '', 'Profit Bersih'), element('strong', 'text-profit', rupiah(summary.netProfit)));
-
-    const m3 = element('div', 'outlet-card-metric');
-    m3.append(element('span', '', 'Transaksi'), element('strong', '', String(summary.salesCount)));
-
-    const m4 = element('div', 'outlet-card-metric');
-    m4.append(element('span', '', 'Antrean Aktif'), element('strong', '', String(summary.activeCount)));
-
-    metrics.append(m1, m2, m3, m4);
-
-    const actions = element('div', 'outlet-card-actions');
-
-    const detailBtn = element('button', 'primary small-btn', 'Lihat Laporan & Kelola');
-    detailBtn.addEventListener('click', () => selectOutlet(summary.id));
-
-    actions.append(detailBtn);
-
-    card.append(top, metrics, actions);
+    const toggle = element(
+      'button',
+      'ghost small-btn partner-outlet-toggle',
+      outletList.hidden ? 'Lihat Outlet' : 'Tutup Outlet',
+    );
+    toggle.type = 'button';
+    toggle.setAttribute('aria-expanded', String(!outletList.hidden));
+    toggle.addEventListener('click', () => {
+      outletList.hidden = !outletList.hidden;
+      if (outletList.hidden) expandedPartnerIds.delete(summary.id);
+      else expandedPartnerIds.add(summary.id);
+      toggle.setAttribute('aria-expanded', String(!outletList.hidden));
+      toggle.textContent = outletList.hidden ? 'Lihat Outlet' : 'Tutup Outlet';
+    });
+    heading.append(title, toggle);
+    card.append(heading, metrics, outletList);
     grid.append(card);
   });
 }
@@ -446,7 +467,6 @@ async function syncSingleOutletState(connectLive = true) {
     renderSummary();
     renderReport();
     renderMediaStatus();
-    renderTaxConfig();
     if ($('#menu-mgmt-modal')?.open) renderMenuMgmtList();
     if (connectLive) connectEvents();
     setConnection(true, payload.updatedAt);
@@ -554,15 +574,6 @@ function renderSummary() {
   $('#owner-sales-count').textContent = String(summary.transactionCount);
   $('#owner-active-count').textContent = String((state.orders || []).filter((order) => ['waiting', 'ready'].includes(order.status)).length);
 
-  const taxCard = $('#owner-tax-card');
-  if (state.taxConfig?.enabled && taxCard) {
-    taxCard.hidden = false;
-    $('#owner-tax-label').textContent = (state.taxConfig.label || 'Pajak') + ' Terkumpul';
-    $('#owner-tax').textContent = rupiah(summary.totalTax);
-  } else if (taxCard) {
-    taxCard.hidden = true;
-  }
-
   const recent = $('#owner-recent-sales');
   if (recent) {
     recent.replaceChildren();
@@ -616,7 +627,6 @@ function renderReport() {
     operationalEntries: selectedOutletId === 'all' ? allOperationalEntries : state.operationalEntries ?? [],
   });
   $('#report-revenue').textContent = rupiah(summary.revenue);
-  $('#report-tax').textContent = rupiah(summary.totalTax);
   $('#report-received').textContent = rupiah(summary.grandRevenue);
   $('#report-cost').textContent = rupiah(summary.totalCost);
   $('#report-gross-profit').textContent = rupiah(summary.margin);
@@ -702,17 +712,6 @@ function renderReport() {
   list.replaceChildren();
   if (!summary.transactions.length) list.append(element('p', 'empty-state large', `Belum ada transaksi pada tanggal ${reportDate}.`));
   summary.transactions.forEach((order) => list.append(transactionRow(order)));
-}
-
-function renderTaxConfig() {
-  const config = state.taxConfig;
-  if (!config) return;
-  const enabledInput = $('#tax-enabled');
-  const labelInput = $('#tax-label');
-  const rateInput = $('#tax-rate');
-  if (enabledInput) enabledInput.checked = config.enabled;
-  if (labelInput) labelInput.value = config.label || 'Pajak';
-  if (rateInput) rateInput.value = config.rate ?? 10;
 }
 
 function connectEvents() {
@@ -890,28 +889,6 @@ $('#admin-pin-config-form')?.addEventListener('submit', async (event) => {
     status.textContent = error.message;
     status.className = 'media-status-msg error';
     status.hidden = false;
-  }
-});
-
-$('#tax-config-form')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  if (selectedOutletId === 'all') {
-    toast('Pilih outlet spesifik terlebih dahulu untuk mengatur pajak.');
-    return;
-  }
-  try {
-    await request(`/api/outlet/${selectedOutletId}/tax-config`, {
-      method: 'POST',
-      body: JSON.stringify({
-        enabled: $('#tax-enabled').checked,
-        label: $('#tax-label').value.trim() || 'Pajak',
-        rate: Number($('#tax-rate').value) || 0,
-      }),
-    });
-    toast('Pengaturan pajak disimpan');
-    await syncSingleOutletState();
-  } catch (err) {
-    showError(err.message);
   }
 });
 

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 
 import {
   approveOutlet,
-  assignOutletToPartner,
   authenticateUser,
   createEmployee,
   createPartner,
@@ -86,34 +85,34 @@ test('Partner proposes unique pending outlets and Owner approval activates one',
   );
 });
 
-test('Owner can assign a legacy outlet then Partner creates scoped Employee accounts', () => {
+test('Partner can create scoped Employee accounts after its outlet is approved', () => {
   const partnerCreated = createPartner(baseRegistry(), {
     name: 'Mitra Jepara',
     username: 'mitra.jepara',
     pin: '5678',
   }, NOW);
-  const assigned = assignOutletToPartner(
-    partnerCreated.registry,
-    'maucafe-tahunan',
-    partnerCreated.partner.id,
-    NOW,
-  );
-  const employee = createEmployee(assigned.registry, {
+  const proposed = proposeOutlet(partnerCreated.registry, {
     partnerId: partnerCreated.partner.id,
-    outletId: 'maucafe-tahunan',
+    name: 'MAUCAFE Jepara Kota',
+    address: 'Jl. Pemuda',
+  }, NOW);
+  const approved = approveOutlet(proposed.registry, proposed.outlet.id, { approvedBy: 'owner' }, NOW);
+  const employee = createEmployee(approved.registry, {
+    partnerId: partnerCreated.partner.id,
+    outletId: proposed.outlet.id,
     name: 'Kasir Pagi',
     username: 'kasir.pagi',
     pin: '2468',
   }, NOW);
 
   assert.equal(employee.user.role, 'employee');
-  assert.deepEqual(employee.user.outletIds, ['maucafe-tahunan']);
+  assert.deepEqual(employee.user.outletIds, [proposed.outlet.id]);
   assert.equal(verifyPinHash(employee.user.pinHash, '2468'), true);
   assert.equal(authenticateUser(employee.registry, {
     username: 'kasir.pagi',
     pin: '2468',
     role: 'employee',
-    outletId: 'maucafe-tahunan',
+    outletId: proposed.outlet.id,
   }).id, employee.user.id);
   assert.equal(authenticateUser(employee.registry, {
     username: 'kasir.pagi',
@@ -134,10 +133,14 @@ test('rejects duplicate usernames and cross-Partner employee assignment', () => 
     username: 'mitra.dua',
     pin: '2223',
   }, NOW);
-  const assigned = assignOutletToPartner(second.registry, 'maucafe-tahunan', first.partner.id, NOW);
+  const proposed = proposeOutlet(second.registry, {
+    partnerId: first.partner.id,
+    name: 'MAUCAFE Mitra Satu',
+    address: 'Jl. Mitra Satu',
+  }, NOW);
 
   assert.throws(
-    () => createPartner(assigned.registry, {
+    () => createPartner(proposed.registry, {
       name: 'Duplikat',
       username: 'MITRA.SATU',
       pin: '9999',
@@ -145,9 +148,9 @@ test('rejects duplicate usernames and cross-Partner employee assignment', () => 
     /username sudah dipakai/i,
   );
   assert.throws(
-    () => createEmployee(assigned.registry, {
+    () => createEmployee(proposed.registry, {
       partnerId: second.partner.id,
-      outletId: 'maucafe-tahunan',
+      outletId: proposed.outlet.id,
       name: 'Penyusup',
       username: 'penyusup',
       pin: '3334',

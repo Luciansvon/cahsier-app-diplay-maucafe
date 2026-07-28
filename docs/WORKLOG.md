@@ -91,11 +91,11 @@ Dokumen ini adalah **sumber dokumentasi tunggal** yang mencatat secara lengkap s
 - Ditambahkan role Owner, Mitra, Karyawan, outlet pending/approval, scope outlet, session web/native, dan outlet dinamis tanpa restart.
 - Ditambahkan shift, rekonsiliasi kas, cash in/out, setoran, biaya, ledger cup, pemakaian cup per produk, dan atribusi order ke Karyawan.
 - Rollover Jakarta meng-expire antrean lama, me-void pembayaran, mereset nomor, dan mempertahankan event ID suara.
-- Laporan sekarang membedakan Penjualan Bersih, Pajak, Total Diterima, HPP, Laba Kotor, Biaya Operasional, dan Profit Bersih.
-- Master menu global, foto produk, playlist media, parser durasi MP4, byte-range streaming, serta display fullscreen/split adaptif selesai.
+- Laporan sekarang membedakan Penjualan Bersih, Total Diterima, HPP, Laba Kotor, Biaya Operasional, dan Profit Bersih tanpa komponen pajak.
+- Master menu global, foto produk, playlist media, parser durasi MP4, byte-range streaming, serta display split tetap 34/66 selesai.
 - UI Kasir, Mitra, dan Owner tersambung ke API operasional baru tanpa dynamic `innerHTML`.
 - Backup/restore SQLite serta Scheduled Task Windows ditambahkan.
 - Bug aktual selama implementasi dicatat sebagai ERR-014 sampai ERR-028 dan semuanya sudah diperbaiki.
 - Verifikasi final: `82/82` automated test lulus, build web lulus, build/lint Android lulus, APK artifact identik dengan output Gradle, serta smoke HTTP lima outlet lulus.
 - Migrasi data aktual diuji pada salinan 9 file JSON; SQLite terbentuk dan hash seluruh JSON sumber tetap sama.
-- QA browser memeriksa Kasir desktop/mobile, login Mitra/Owner, dashboard Owner, dan display idle fullscreen; console final Mitra/Owner bersih.
+- QA browser memeriksa Kasir desktop/mobile, login Mitra/Owner, kartu agregat Owner per Mitra, dan display split tetap; console final bersih.

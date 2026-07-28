@@ -25,7 +25,10 @@
 - Legacy migration call-event dibuat aman terhadap `localStorage` TV lama.
 - Order snapshot sekarang menyimpan category dan canonical unitPrice.
 - Fix laporan `item.price` menjadi `item.unitPrice` dengan legacy fallback.
-- Financial summary memisahkan net sales/tax/total received.
+- Financial summary menghitung net sales/total received tanpa komponen pajak.
+- Dashboard Owner mengagregasi finansial, antrean, dan saldo cup per Mitra serta mempertahankan drill-down saat refresh SSE.
+- Display memakai split tetap 34/66 dengan media full-bleed tanpa chrome promo.
+- Seluruh nomor waiting dikirim oldest-first dan dipaginasi enam nomor per empat detik di browser.
 - Cancel menyimpan reason, cancelledAt, cancelledBy, approvedBy.
 - Queue reset menambahkan cancellation metadata pada order aktif.
 - State schema dinaikkan ke v2 dan dinormalisasi saat startup.

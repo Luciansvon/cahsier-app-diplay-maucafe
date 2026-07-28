@@ -26,7 +26,7 @@ Sistem sengaja tetap satu server dan satu database. Tidak ada microservice, Redi
 - `schema_migrations`: migrasi satu kali;
 - WAL, foreign keys, dan busy timeout aktif.
 
-Registry menyimpan outlet, Mitra, user, dan master product. State outlet menyimpan order, shift, transaksi operasional, inventory movement, pajak, media playlist, active call, serta revision.
+Registry menyimpan outlet, Mitra, user, dan master product. State outlet menyimpan order, shift, transaksi operasional, inventory movement, media playlist, active call, serta revision.
 
 Startup pertama mengimpor JSON lama dalam satu transaksi dan menandai `legacy-json-v1`. File JSON sumber tidak dihapus. Sesudah migrasi, SQLite adalah source of truth runtime.
 
@@ -36,14 +36,14 @@ Startup pertama mengimpor JSON lama dalam satu transaksi dan menandai `legacy-js
 Owner
 ├── semua Mitra dan outlet
 ├── master menu/HPP/foto/cup usage
-├── laporan seluruh jaringan
+├── laporan seluruh jaringan dan agregat per Mitra
 └── credential, approval, audit, destructive action
 
 Mitra
 ├── hanya outlet dengan partnerId miliknya
 ├── Karyawan miliknya
 ├── shift/cash/expense/cup/media outlet
-└── laporan finansial outlet miliknya
+└── ringkasan gabungan dan laporan outlet miliknya
 
 Karyawan
 ├── tepat satu outlet dari session
@@ -52,7 +52,7 @@ Karyawan
 └── ringkasan harian tanpa HPP/profit
 
 Public Display
-└── produk publik, active call, playlist, dan freshness
+└── produk publik, active call, nomor waiting, playlist, dan freshness
 ```
 
 Authorization diputuskan di server. UI tersembunyi bukan security.
@@ -70,7 +70,7 @@ Authorization diputuskan di server. UI tersembunyi bukan security.
 
 ## Order, shift, dan finansial
 
-Server menetapkan harga, HPP snapshot, pajak, total, nomor, business date, shift, dan identitas Karyawan. Client hanya menentukan product ID, quantity, payment method, dan request ID idempoten.
+Server menetapkan harga, HPP snapshot, total, nomor, business date, shift, dan identitas Karyawan. Client hanya menentukan product ID, quantity, payment method, dan request ID idempoten.
 
 Satu shift aktif per outlet:
 
@@ -88,9 +88,9 @@ Tutup shift menyimpan kas aktual dan variance. Selisih atau force-close wajib me
 
 Definisi laporan:
 
-- Penjualan Bersih: subtotal sebelum pajak;
-- Pajak Terkumpul: pajak pada transaksi dihitung;
-- Total Diterima: Penjualan Bersih + Pajak;
+- Penjualan Bersih: subtotal transaksi dibayar;
+- Total Diterima: sama dengan Penjualan Bersih;
+- Total per metode pembayaran: uang yang diterima melalui Tunai atau QRIS;
 - Total HPP: snapshot unitCost × quantity;
 - Laba Kotor: Penjualan Bersih − HPP;
 - Biaya Operasional: entry bertipe `expense`;
@@ -128,6 +128,7 @@ Produk menyimpan `cupUsage` 0–10 dan order menyimpan snapshot-nya. Ledger inve
 Playlist adalah state per outlet:
 
 - maksimal lima video MP4;
+- video berulang otomatis, termasuk playlist satu item;
 - durasi video dibaca dari box `mvhd`, maksimal 120 detik;
 - foto PNG/JPEG/WebP memiliki durasi 3–60 detik;
 - generated filename, signature/MIME validation, size limit, dan rate limit;
@@ -135,7 +136,7 @@ Playlist adalah state per outlet:
 
 Static media memakai stream file, byte-range, ETag, Last-Modified, dan public cache. Server tidak membaca video penuh ke RAM.
 
-Display idle fullscreen. Saat active call ada, class `has-active-call` membuka panel nomor 34%. Video dijeda selama Web Speech lalu dilanjutkan dari posisi sebelumnya. SSE dipadukan dengan polling fallback lima detik dan stale guard 30 detik.
+Display selalu split tetap: panel antrean 34% dan panel media 66%. Panel antrean menampilkan active call atau status kosong serta nomor waiting oldest-first. Semua nomor waiting dikirim server, lalu browser menampilkan enam nomor per halaman dan berotasi setiap empat detik. Panel media hanya memuat foto/video full-bleed tanpa chrome promo. Selama Web Speech, visual video terus berjalan dan hanya audio promo yang dimute sementara. SSE dipadukan dengan polling fallback lima detik dan stale guard 30 detik.
 
 ## Backup, restore, dan LAN
 

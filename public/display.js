@@ -1,16 +1,14 @@
-import { normalizeQueueNumber, queueNumberText } from './queue-number.js';
+import { normalizeQueueNumber, queueNumberPage, queueNumberText } from './queue-number.js';
 
 const number = document.querySelector('#active-number');
 const message = document.querySelector('#pickup-message');
 const connection = document.querySelector('#display-connection');
 const outletNameEl = document.querySelector('#display-outlet-name');
-const promo = document.querySelector('#promo-content');
-const promoCounter = document.querySelector('#promo-counter');
-const promoTagline = document.querySelector('#promo-tagline');
 const promoVideo = document.querySelector('#promo-video');
 const promoImage = document.querySelector('#promo-image');
+const preparingStatus = document.querySelector('#preparing-status');
+const preparingPage = document.querySelector('#preparing-page');
 const voiceButton = document.querySelector('#enable-voice');
-const displayShell = document.querySelector('.display-shell');
 
 function getOutletId() {
   const match = window.location.pathname.match(/\/outlet\/([^/]+)/);
@@ -22,21 +20,22 @@ const outletId = getOutletId();
 const apiBase = `/api/outlet/${outletId}`;
 const cacheKey = `queue-display-state-${outletId}`;
 const STALE_AFTER_MS = 30_000;
+const PREPARING_ROTATION_MS = 4_000;
 
 let state = null;
 let voiceEnabled = localStorage.getItem('queue-voice-enabled') === 'true';
 let lastSpokenEvent = Number(localStorage.getItem(`queue-last-spoken-event-${outletId}`) || 0);
-let promoIndex = 0;
-let hasCustomMedia = false;
 let currentMediaUrl = '';
 let currentMediaId = '';
 let playlistIndex = 0;
+let preparingPageIndex = 0;
+let preparingSignature = '';
 let imageTimer = null;
 let speechGeneration = 0;
+let promoAudioMutedBeforeSpeech = true;
+let promoAudioDuckActive = false;
 let lastFreshAt = 0;
 let events = null;
-
-const rupiah = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
 
 function setConnection(mode) {
   if (!connection) return;
@@ -50,31 +49,39 @@ function setConnection(mode) {
   connection.className = `connection ${mode === 'online' ? 'online' : 'offline'}`;
 }
 
+function restorePromoAudio(generation) {
+  if (generation !== speechGeneration || !promoAudioDuckActive) return;
+  if (promoVideo) promoVideo.muted = promoAudioMutedBeforeSpeech;
+  promoAudioDuckActive = false;
+}
+
 function announce(activeCall) {
   if (!voiceEnabled || !activeCall || activeCall.eventId <= lastSpokenEvent) return;
   const generation = ++speechGeneration;
-  const resumeVideo = Boolean(promoVideo && !promoVideo.hidden && !promoVideo.paused);
-  if (promoVideo) {
+  if (promoVideo && !promoVideo.hidden) {
+    if (!promoAudioDuckActive) promoAudioMutedBeforeSpeech = promoVideo.muted;
+    promoAudioDuckActive = true;
     promoVideo.muted = true;
-    promoVideo.pause();
   }
-  speechSynthesis.cancel();
-  const speech = new SpeechSynthesisUtterance(`Pesanan nomor ${queueNumberText(activeCall.queueNumber)}, silakan diambil.`);
-  speech.lang = 'id-ID';
-  speech.rate = 0.88;
-  speech.volume = 1;
-  speech.onend = () => {
-    if (generation === speechGeneration && resumeVideo && promoVideo && !promoVideo.hidden) {
-      promoVideo.play().catch(() => {});
-    }
-  };
-  speech.onerror = speech.onend;
-  speechSynthesis.speak(speech);
+  try {
+    speechSynthesis.cancel();
+    const speech = new SpeechSynthesisUtterance(`Pesanan nomor ${queueNumberText(activeCall.queueNumber)}, silakan diambil.`);
+    speech.lang = 'id-ID';
+    speech.rate = 0.88;
+    speech.volume = 1;
+    speech.onend = () => restorePromoAudio(generation);
+    speech.onerror = speech.onend;
+    speechSynthesis.speak(speech);
+    window.setTimeout(() => restorePromoAudio(generation), 15_000);
+  } catch {
+    restorePromoAudio(generation);
+    return;
+  }
   lastSpokenEvent = activeCall.eventId;
   localStorage.setItem(`queue-last-spoken-event-${outletId}`, String(lastSpokenEvent));
 }
 
-function renderMedia(promoMedia, position = 0, total = 1) {
+function renderMedia(promoMedia, position = 0, total = 1, { forcePlayback = false } = {}) {
   if (!promoMedia?.url) return false;
   const url = promoMedia.url;
   const fit = promoMedia.fit === 'contain' ? 'contain' : 'cover';
@@ -90,12 +97,12 @@ function renderMedia(promoMedia, position = 0, total = 1) {
         source.src = url;
         promoVideo.load();
         promoVideo.play().catch(() => {});
+      } else if (forcePlayback) {
+        promoVideo.currentTime = 0;
+        promoVideo.play().catch(() => {});
       }
       promoVideo.hidden = false;
     }
-    if (promo) promo.hidden = true;
-    if (promoTagline) promoTagline.textContent = 'PROMO OUTLET';
-    if (promoCounter) promoCounter.textContent = `${String(position + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
     return true;
   }
 
@@ -111,9 +118,6 @@ function renderMedia(promoMedia, position = 0, total = 1) {
       }
       promoImage.hidden = false;
     }
-    if (promo) promo.hidden = true;
-    if (promoTagline) promoTagline.textContent = 'PROMO OUTLET';
-    if (promoCounter) promoCounter.textContent = `${String(position + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
     return true;
   }
   return false;
@@ -130,13 +134,17 @@ function clearImageTimer() {
   imageTimer = null;
 }
 
-function showPlaylistItem({ force = false } = {}) {
+function showPlaylistItem({ force = false, forcePlayback = false } = {}) {
   const playlist = activePlaylist();
   if (!playlist.length) {
     clearImageTimer();
     currentMediaId = '';
-    hasCustomMedia = false;
-    renderDefaultPromo();
+    currentMediaUrl = '';
+    if (promoVideo) {
+      promoVideo.pause();
+      promoVideo.hidden = true;
+    }
+    if (promoImage) promoImage.hidden = true;
     return;
   }
   playlistIndex %= playlist.length;
@@ -144,7 +152,7 @@ function showPlaylistItem({ force = false } = {}) {
   if (!force && currentMediaId === item.id) return;
   currentMediaId = item.id;
   clearImageTimer();
-  hasCustomMedia = renderMedia(item, playlistIndex, playlist.length);
+  renderMedia(item, playlistIndex, playlist.length, { forcePlayback });
   if (item.type === 'image') {
     imageTimer = window.setTimeout(
       () => advancePlaylist(),
@@ -153,63 +161,47 @@ function showPlaylistItem({ force = false } = {}) {
   }
 }
 
-function advancePlaylist() {
+function advancePlaylist({ replayCurrent = false } = {}) {
   const playlist = activePlaylist();
   if (!playlist.length) return;
   playlistIndex = (playlistIndex + 1) % playlist.length;
   currentMediaId = '';
-  showPlaylistItem({ force: true });
+  showPlaylistItem({ force: true, forcePlayback: replayCurrent });
 }
 
-promoVideo?.addEventListener('ended', advancePlaylist);
-promoVideo?.addEventListener('error', advancePlaylist);
+promoVideo?.addEventListener('ended', () => advancePlaylist({ replayCurrent: true }));
+promoVideo?.addEventListener('error', () => advancePlaylist());
 
-function renderDefaultPromo() {
-  if (hasCustomMedia || !promo) return;
-  const products = state?.products?.filter((product) => product.active) ?? [];
-  if (promoVideo) promoVideo.hidden = true;
-  if (promoImage) promoImage.hidden = true;
-  promo.hidden = false;
-  promo.replaceChildren();
-
-  if (!products.length) {
-    const kicker = document.createElement('p');
-    kicker.className = 'promo-kicker';
-    kicker.textContent = 'HARI INI';
-    const title = document.createElement('h1');
-    title.append(document.createTextNode('Racikan hangat'), document.createElement('br'), document.createTextNode('untuk harimu.'));
-    const text = document.createElement('p');
-    text.textContent = 'Menu aktif akan tampil otomatis di layar ini.';
-    promo.append(kicker, title, text);
-    if (promoCounter) promoCounter.textContent = '01 / 01';
-    if (promoTagline) promoTagline.textContent = 'MENU PILIHAN';
-    return;
+function renderPreparing(numbers, { reset = false } = {}) {
+  const safeNumbers = Array.isArray(numbers) ? numbers : [];
+  const signature = safeNumbers.join('|');
+  if (reset || signature !== preparingSignature) {
+    preparingSignature = signature;
+    preparingPageIndex = 0;
   }
-
-  promoIndex %= products.length;
-  const product = products[promoIndex];
-  const kicker = document.createElement('p');
-  kicker.className = 'promo-kicker';
-  kicker.textContent = String(product.category || 'Menu').toUpperCase();
-  const title = document.createElement('h1');
-  title.textContent = product.name;
-  const price = document.createElement('strong');
-  price.className = 'promo-price';
-  price.textContent = rupiah(product.price);
-  promo.append(kicker, title, price);
-  if (promoCounter) promoCounter.textContent = `${String(promoIndex + 1).padStart(2, '0')} / ${String(products.length).padStart(2, '0')}`;
-  if (promoTagline) promoTagline.textContent = 'MENU PILIHAN';
+  const page = queueNumberPage(safeNumbers, preparingPageIndex);
+  preparingPageIndex = page.pageIndex;
+  if (preparingStatus) {
+    preparingStatus.textContent = page.numbers.length
+      ? page.numbers.join(', ')
+      : 'Belum ada pesanan yang sedang dibuat';
+  }
+  if (preparingPage) {
+    preparingPage.hidden = page.pageCount <= 1;
+    preparingPage.textContent = `${page.pageIndex + 1} / ${page.pageCount}`;
+  }
 }
 
 function renderQueue({ allowActiveNumber = true } = {}) {
   const activeCall = allowActiveNumber ? state?.activeCall : null;
-  displayShell?.classList.toggle('has-active-call', Boolean(activeCall));
+  const preparing = allowActiveNumber ? (state?.preparingQueueNumbers ?? []) : [];
   if (number) number.textContent = activeCall ? normalizeQueueNumber(activeCall.queueNumber) : '---';
   if (message) {
     message.textContent = activeCall
       ? 'Silakan ambil pesanan di counter'
-      : allowActiveNumber ? 'Menunggu panggilan berikutnya' : 'Nomor antrean sedang diperbarui';
+      : allowActiveNumber ? 'Belum ada pesanan siap' : 'Nomor antrean sedang diperbarui';
   }
+  renderPreparing(preparing);
   if (allowActiveNumber) announce(activeCall);
 }
 
@@ -310,11 +302,13 @@ async function connect() {
 
 loadCache();
 window.setInterval(() => {
-  if (!hasCustomMedia) {
-    promoIndex += 1;
-    renderDefaultPromo();
-  }
-}, 8000);
+  if (!lastFreshAt || Date.now() - lastFreshAt > STALE_AFTER_MS) return;
+  const numbers = state?.preparingQueueNumbers ?? [];
+  const page = queueNumberPage(numbers, preparingPageIndex);
+  if (page.pageCount <= 1) return;
+  preparingPageIndex = (page.pageIndex + 1) % page.pageCount;
+  renderPreparing(numbers);
+}, PREPARING_ROTATION_MS);
 window.setInterval(syncState, 5000);
 window.setInterval(renderStaleIfNeeded, 5000);
 connect();

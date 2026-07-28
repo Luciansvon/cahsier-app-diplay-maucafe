@@ -80,11 +80,6 @@ export function createInitialState({ products = [] } = {}) {
       imageDurationSeconds: 8,
       active: true,
     }],
-    taxConfig: {
-      enabled: false,
-      label: 'Pajak',
-      rate: 10,
-    },
     revision: 0,
     schemaVersion: 3,
   };
@@ -100,7 +95,6 @@ export function rolloverBusinessDay(currentState, now = new Date().toISOString()
   for (const order of state.orders ?? []) {
     if (['waiting', 'ready'].includes(order.status)) {
       order.status = 'expired';
-      order.paymentStatus = 'void';
       order.expiredAt = now;
       order.expiredReason = 'Pergantian hari operasional';
       order.updatedAt = now;
@@ -147,10 +141,6 @@ export function createOrder(currentState, input, now = new Date().toISOString())
 
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
   if (!Number.isSafeInteger(subtotal)) throw new Error('Total pesanan terlalu besar');
-  const tax = state.taxConfig;
-  const taxAmount = tax?.enabled ? Math.round(subtotal * (tax.rate ?? 0) / 100) : 0;
-  const grandTotal = subtotal + taxAmount;
-  if (!Number.isSafeInteger(taxAmount) || !Number.isSafeInteger(grandTotal)) throw new Error('Total pesanan terlalu besar');
 
   const order = {
     id: randomUUID(),
@@ -166,10 +156,7 @@ export function createOrder(currentState, input, now = new Date().toISOString())
     } : {}),
     items,
     total: subtotal,
-    taxLabel: tax?.enabled ? (tax.label || 'Pajak') : null,
-    taxRate: tax?.enabled ? (tax.rate ?? 0) : 0,
-    taxAmount,
-    grandTotal,
+    grandTotal: subtotal,
     status: 'waiting',
     createdAt: now,
     updatedAt: now,
@@ -230,12 +217,9 @@ export function resetQueue(currentState, now = new Date().toISOString()) {
   state.nextQueueNumber = 1;
   for (const order of state.orders) {
     if (['waiting', 'ready'].includes(order.status)) {
-      order.status = 'cancelled';
-      order.paymentStatus = 'void';
-      order.cancelledAt = now;
-      order.cancelReason = 'Reset antrean oleh Owner';
-      order.cancelledBy = 'owner';
-      order.approvedBy = 'owner';
+      order.status = 'expired';
+      order.expiredAt = now;
+      order.expiredReason = 'Reset antrean oleh Owner';
       order.updatedAt = now;
     }
   }
@@ -282,27 +266,6 @@ export function setProductImage(currentState, productId, imageUrl) {
   product.imageUrl = normalized;
   return { state: changed(state), product };
 }
-
-export function updateTaxConfig(currentState, input) {
-  const state = clone(currentState);
-  if (!input || typeof input !== 'object') throw new Error('Pengaturan pajak tidak valid');
-  const config = state.taxConfig ?? { enabled: false, label: 'Pajak', rate: 10 };
-  if ('enabled' in input) config.enabled = Boolean(input.enabled);
-  if ('label' in input) {
-    const label = String(input.label ?? '').trim();
-    if (!label) throw new Error('Label pajak wajib diisi');
-    if (label.length > 30) throw new Error('Label pajak maksimal 30 karakter');
-    config.label = label;
-  }
-  if ('rate' in input) {
-    const rate = Number(input.rate);
-    if (!Number.isFinite(rate) || rate < 0 || rate > 100) throw new Error('Tarif pajak harus antara 0 dan 100');
-    config.rate = rate;
-  }
-  state.taxConfig = config;
-  return { state: changed(state), taxConfig: config };
-}
-
 
 function createOwnerPinHash(pin) {
   return createPinHash(pin);

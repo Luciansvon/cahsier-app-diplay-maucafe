@@ -34,6 +34,7 @@
         <button id="partner-refresh" class="ghost small-btn" type="button">Muat ulang</button>
       </section>
 
+      <h2 id="partner-summary-title" class="partner-summary-title">Ringkasan Gabungan Semua Outlet</h2>
       <section id="partner-metrics" class="partner-metrics">
         <article class="card"><span>Penjualan Bersih</span><strong id="partner-revenue">Rp0</strong></article>
         <article class="card"><span>Total Diterima</span><strong id="partner-received">Rp0</strong></article>
@@ -46,19 +47,33 @@
       <nav class="partner-tabs" aria-label="Menu Mitra">
         <button class="partner-tab active" data-tab="partner-operations">Operasional</button>
         <button class="partner-tab" data-tab="partner-employees">Karyawan</button>
+        <button class="partner-tab" data-tab="partner-products">Pilih Menu</button>
         <button class="partner-tab" data-tab="partner-media">Media TV</button>
         <button class="partner-tab" data-tab="partner-outlets">Outlet</button>
       </nav>
 
+      <section id="partner-products" class="partner-panel">
+        <article class="card">
+          <div class="partner-products-header">
+            <div>
+              <h2>Pilih Menu Outlet</h2>
+              <p class="form-help">Aktifkan menu dari Master Owner yang ingin dijual di outlet ini. Menu aktif akan muncul di Kasir POS.</p>
+            </div>
+            <div id="partner-category-pills" class="category-pills"></div>
+          </div>
+          <div id="partner-product-grid" class="partner-product-grid"></div>
+        </article>
+      </section>
+
       <section id="partner-operations" class="partner-panel active">
         <div class="partner-grid">
-          <article class="card">
+          <article class="card shift-card">
             <h2>Shift aktif</h2>
-            <p id="partner-current-shift">Belum ada shift aktif.</p>
+            <div id="partner-current-shift" class="shift-status"><span>Belum ada shift aktif.</span></div>
             <form id="partner-force-close-form" hidden>
               <label class="modal-field"><span>Kas fisik</span><input id="partner-actual-cash" type="number" min="0" required></label>
-              <label class="modal-field"><span>Alasan force close</span><input id="partner-close-reason" maxlength="300" required></label>
-              <button class="danger-btn" type="submit">Force Close Shift</button>
+              <label class="modal-field"><span>Alasan tutup paksa</span><input id="partner-close-reason" maxlength="300" required></label>
+              <button class="danger-btn" type="submit">Tutup Paksa Shift</button>
             </form>
           </article>
           <article class="card">

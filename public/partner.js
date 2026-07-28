@@ -83,15 +83,25 @@ function renderOutlets() {
 
 function renderMetrics() {
   const outlet = selectedOutlet();
-  $('#partner-revenue').textContent = rupiah(outlet?.revenue);
-  $('#partner-received').textContent = rupiah(outlet?.received);
-  $('#partner-gross-profit').textContent = rupiah(outlet?.grossProfit);
-  $('#partner-expenses').textContent = rupiah(outlet?.operatingExpenses);
-  $('#partner-net-profit').textContent = rupiah(outlet?.netProfit);
-  $('#partner-cup-balance').textContent = String(outlet?.inventory?.balance ?? 0);
-  $('#partner-current-shift').textContent = outlet?.currentShift
-    ? `${outlet.currentShift.label} · ${outlet.currentShift.employeeName} · saldo awal ${rupiah(outlet.currentShift.openingCash)}`
-    : 'Belum ada shift aktif.';
+  const summary = dashboard.summary;
+  $('#partner-summary-title').textContent = `Ringkasan Gabungan ${summary?.outletCount ?? 0} Outlet Aktif`;
+  $('#partner-revenue').textContent = rupiah(summary?.revenue);
+  $('#partner-received').textContent = rupiah(summary?.received);
+  $('#partner-gross-profit').textContent = rupiah(summary?.grossProfit);
+  $('#partner-expenses').textContent = rupiah(summary?.operatingExpenses);
+  $('#partner-net-profit').textContent = rupiah(summary?.netProfit);
+  $('#partner-cup-balance').textContent = String(summary?.inventory?.balance ?? 0);
+  const shiftStatus = $('#partner-current-shift');
+  shiftStatus.replaceChildren();
+  if (outlet?.currentShift) {
+    shiftStatus.append(
+      element('strong', '', outlet.currentShift.label),
+      element('span', '', `Kasir: ${outlet.currentShift.employeeName}`),
+      element('span', '', `Saldo awal: ${rupiah(outlet.currentShift.openingCash)}`),
+    );
+  } else {
+    shiftStatus.append(element('span', '', 'Belum ada shift aktif.'));
+  }
   $('#partner-force-close-form').hidden = !outlet?.currentShift;
 }
 
@@ -142,7 +152,7 @@ function renderMedia() {
     const info = element('div');
     info.append(
       element('strong', '', `${index + 1}. ${item.filename}`),
-      element('small', '', item.type === 'video' ? `${item.durationSeconds} detik` : `${item.imageDurationSeconds} detik`),
+      element('small', '', item.type === 'video' ? (item.durationSeconds || item.duration ? `${item.durationSeconds || item.duration}s · Video MP4` : 'Video MP4') : `${item.imageDurationSeconds || 8}s · Foto`),
     );
     const remove = element('button', 'danger-btn small-btn', 'Hapus');
     remove.type = 'button';
@@ -156,6 +166,88 @@ function renderMedia() {
   });
 }
 
+let outletProducts = [];
+let activeCategoryFilter = 'Semua';
+
+async function loadPartnerProducts() {
+  if (!selectedOutletId) return;
+  const res = await request(`/api/partner/outlets/${selectedOutletId}/products`);
+  outletProducts = res.products || [];
+  renderPartnerProducts();
+}
+
+function renderPartnerProducts() {
+  const grid = $('#partner-product-grid');
+  const filterContainer = $('#partner-category-pills');
+  if (!grid || !filterContainer) return;
+  grid.replaceChildren();
+  filterContainer.replaceChildren();
+
+  const categories = ['Semua', ...new Set(outletProducts.map((p) => p.category || 'Lainnya'))];
+  for (const cat of categories) {
+    const pill = element('button', `category-pill ${activeCategoryFilter === cat ? 'active' : ''}`, cat);
+    pill.type = 'button';
+    pill.addEventListener('click', () => {
+      activeCategoryFilter = cat;
+      renderPartnerProducts();
+    });
+    filterContainer.append(pill);
+  }
+
+  const filtered = outletProducts.filter((p) => (
+    activeCategoryFilter === 'Semua' || (p.category || 'Lainnya') === activeCategoryFilter
+  ));
+
+  if (!filtered.length) {
+    grid.append(element('p', 'empty-state large product-empty', 'Belum ada menu dari Master Owner.'));
+    return;
+  }
+
+  for (const product of filtered) {
+    const card = element('article', `partner-product-card ${product.active ? '' : 'inactive'}`);
+
+    const media = element('div', 'partner-product-media');
+    if (product.imageUrl) {
+      const img = element('img', 'partner-product-image');
+      img.src = product.imageUrl;
+      media.append(img);
+    } else {
+      media.append(element('span', 'partner-product-fallback', (product.name || 'M').slice(0, 1).toUpperCase()));
+    }
+
+    const meta = element('div', 'partner-product-meta');
+    meta.append(
+      element('span', 'partner-product-category', product.category || 'Lainnya'),
+      element('h3', 'partner-product-name', product.name),
+      element('span', 'partner-product-price', rupiah(product.price)),
+    );
+
+    const action = element('div', 'partner-product-action');
+    const statusText = element('strong', product.active ? 'active-status' : 'inactive-status', product.active ? 'Dijual di POS' : 'Nonaktif');
+    const toggleBtn = element('button', product.active ? 'danger-btn small-btn' : 'primary small-btn', product.active ? 'Nonaktifkan' : 'Aktifkan');
+    toggleBtn.type = 'button';
+
+    toggleBtn.addEventListener('click', async () => {
+      const newActive = !product.active;
+      try {
+        await request(`/api/partner/outlets/${selectedOutletId}/products/${product.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ active: newActive }),
+        });
+        product.active = newActive;
+        toast(`Menu "${product.name}" ${newActive ? 'diaktifkan' : 'dinonaktifkan'}`);
+        renderPartnerProducts();
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    action.append(statusText, toggleBtn);
+    card.append(media, meta, action);
+    grid.append(card);
+  }
+}
+
 function render() {
   $('#partner-name').textContent = dashboard.partner.name;
   $('#partner-connection').textContent = 'Terhubung';
@@ -164,6 +256,9 @@ function render() {
   renderMetrics();
   renderEmployees();
   renderMedia();
+  if ($('#partner-products')?.classList.contains('active')) {
+    loadPartnerProducts().catch(() => {});
+  }
 }
 
 async function loadDashboard() {
@@ -206,6 +301,9 @@ $('#partner-outlet-select')?.addEventListener('change', (event) => {
   renderMetrics();
   renderEmployees();
   renderMedia();
+  if ($('#partner-products')?.classList.contains('active')) {
+    loadPartnerProducts().catch(() => {});
+  }
 });
 $('#partner-refresh')?.addEventListener('click', () => loadDashboard().catch(() => {}));
 
@@ -214,6 +312,9 @@ document.querySelectorAll('.partner-tab').forEach((button) => {
     document.querySelectorAll('.partner-tab, .partner-panel').forEach((node) => node.classList.remove('active'));
     button.classList.add('active');
     $(`#${button.dataset.tab}`).classList.add('active');
+    if (button.dataset.tab === 'partner-products') {
+      loadPartnerProducts().catch(() => {});
+    }
   });
 });
 

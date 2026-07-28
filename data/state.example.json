@@ -44,11 +44,6 @@
   "operationalEntries": [],
   "inventoryMovements": [],
   "activeCall": null,
-  "taxConfig": {
-    "enabled": false,
-    "label": "Pajak",
-    "rate": 10
-  },
   "revision": 0,
   "nextCallEventId": 1,
   "promoMedia": {

@@ -43,7 +43,7 @@ Sekarang upload membutuhkan auth, size limit, signature/MIME validation, generat
 - Migrasi legacy call event menggunakan baseline tinggi agar tidak bentrok dengan `localStorage` display lama.
 - Category dan unitPrice disnapshot ke order item.
 - `sales.js` memakai canonical `unitPrice` dengan fallback legacy.
-- Laporan memisahkan Penjualan Bersih, Pajak, dan Total Diterima.
+- Laporan memisahkan Penjualan Bersih dan Total Diterima tanpa komponen pajak.
 - Waiting queue di UI diurutkan oldest-first; Ready dipisahkan.
 - Cancel membutuhkan reason + Owner approval dan menyimpan audit metadata.
 - Queue reset mencatat cancellation metadata untuk order aktif yang dibatalkan.

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 
 import { createPinHash, verifyPinHash } from './security.js';
 
@@ -127,6 +127,8 @@ export function proposeOutlet(currentRegistry, input, now = new Date().toISOStri
     address: text(input?.address, 'Alamat outlet', 240),
     partnerId: partner.id,
     status: 'pending',
+    adminPinHash: createPinHash(String(randomInt(10_000_000, 100_000_000))),
+    legacyAdminDisabled: true,
     createdAt: now,
   };
   registry.outlets.push(outlet);
@@ -144,31 +146,14 @@ export function approveOutlet(currentRegistry, outletId, input, now = new Date()
   const outlet = findOutlet(registry, outletId);
   if (outlet.status === 'active') throw new Error('Outlet sudah aktif');
   if (outlet.status !== 'pending') throw new Error('Status outlet tidak dapat disetujui');
+  if (!outlet.adminPinHash) {
+    outlet.adminPinHash = createPinHash(String(randomInt(10_000_000, 100_000_000)));
+    outlet.legacyAdminDisabled = true;
+  }
   outlet.status = 'active';
   outlet.approvedAt = now;
   outlet.approvedBy = text(input?.approvedBy, 'Penyetuju', 100);
   return { registry, outlet };
-}
-
-export function assignOutletToPartner(currentRegistry, outletId, partnerId, now = new Date().toISOString()) {
-  const registry = normalizeRegistry(currentRegistry);
-  const outlet = findOutlet(registry, outletId);
-  const partner = findPartner(registry, partnerId);
-  for (const candidate of registry.partners) {
-    candidate.outletIds = (candidate.outletIds ?? []).filter((id) => id !== outlet.id);
-  }
-  for (const user of registry.users) {
-    if (user.role === 'partner') user.outletIds = (user.outletIds ?? []).filter((id) => id !== outlet.id);
-  }
-  outlet.partnerId = partner.id;
-  outlet.assignedAt = now;
-  partner.outletIds = [...new Set([...(partner.outletIds ?? []), outlet.id])];
-  for (const user of registry.users) {
-    if (user.role === 'partner' && user.partnerId === partner.id) {
-      user.outletIds = [...new Set([...(user.outletIds ?? []), outlet.id])];
-    }
-  }
-  return { registry, outlet, partner };
 }
 
 export function createEmployee(currentRegistry, input, now = new Date().toISOString()) {

@@ -14,7 +14,12 @@
       <div class="queue-center">
         <p class="queue-label">PESANAN SIAP</p>
         <strong id="active-number" class="active-number">---</strong>
-        <p id="pickup-message" class="pickup-message">Menunggu panggilan berikutnya</p>
+        <p id="pickup-message" class="pickup-message">Belum ada pesanan siap</p>
+        <div class="preparing-block">
+          <p class="preparing-label">SEDANG DIBUAT</p>
+          <p id="preparing-status" class="preparing-status">Belum ada pesanan yang sedang dibuat</p>
+          <small id="preparing-page" class="preparing-page" hidden></small>
+        </div>
       </div>
       <div class="display-controls">
         <span id="display-connection" class="connection offline" role="status">Menghubungkan...</span>
@@ -22,19 +27,12 @@
       </div>
     </section>
     <section class="promo-panel">
-      <div class="promo-topline"><span id="promo-tagline">MENU PILIHAN</span><span id="promo-counter">01 / 01</span></div>
       <div class="promo-wrapper">
         <video id="promo-video" class="promo-video" autoplay muted playsinline hidden>
           <source id="promo-video-source" src="/media/promo.mp4" type="video/mp4">
         </video>
         <img id="promo-image" class="promo-image" alt="Promosi Maucafe" hidden>
-        <div id="promo-content" class="promo-content">
-          <p class="promo-kicker">HARI INI</p>
-          <h1>Racikan hangat<br>untuk harimu.</h1>
-          <p>Menu aktif akan tampil otomatis di layar ini.</p>
-        </div>
       </div>
-      <div class="promo-decoration" aria-hidden="true"><span></span><span></span><span></span></div>
     </section>
   </main>
   <script type="module" src="./display.js"></script>

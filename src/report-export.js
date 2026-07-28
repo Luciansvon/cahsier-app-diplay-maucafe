@@ -33,7 +33,6 @@ export function buildSalesWorkbook({
 }) {
   const metrics = [
     ['Penjualan Bersih', summary.revenue],
-    ['Pajak Terkumpul', summary.totalTax],
     ['Total Diterima', summary.grandRevenue],
     ['Total HPP', summary.totalCost],
     ['Laba Kotor', summary.margin],

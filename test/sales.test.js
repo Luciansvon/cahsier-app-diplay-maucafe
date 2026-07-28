@@ -25,16 +25,16 @@ const orders = [
   },
 ];
 
-test('summarizes paid sales with HPP, category snapshots, tax, and total received', () => {
+test('summarizes paid sales without legacy tax calculations', () => {
   const summary = summarizeSales(orders, '2026-07-23');
 
   assert.equal(summary.revenue, 58000);
   assert.equal(summary.totalCost, 26000); // 8000*1 + 9000*2
   assert.equal(summary.margin, 32000);
-  assert.equal(summary.totalTax, 5800);
-  assert.equal(summary.grandRevenue, 63800);
+  assert.equal('totalTax' in summary, false);
+  assert.equal(summary.grandRevenue, 58000);
   assert.equal(summary.transactionCount, 2);
-  assert.deepEqual(summary.paymentTotals, { cash: 19800, QRIS: 44000 });
+  assert.deepEqual(summary.paymentTotals, { cash: 18000, QRIS: 40000 });
   assert.deepEqual(summary.products, [
     { productId: 'cokelat', productName: 'Chocolate', category: 'Non-Kopi', unitPrice: 20000, quantity: 2, revenue: 40000, cost: 18000, margin: 22000, transactionCount: 1, avgQtyPerTrx: '2,00' },
     { productId: 'kopi', productName: 'Kopi Susu', category: 'Kopi', unitPrice: 18000, quantity: 1, revenue: 18000, cost: 8000, margin: 10000, transactionCount: 1, avgQtyPerTrx: '1,00' },
@@ -74,7 +74,7 @@ test('returns empty totals when the business date has no transactions', () => {
   assert.equal(summary.revenue, 0);
   assert.equal(summary.totalCost, 0);
   assert.equal(summary.margin, 0);
-  assert.equal(summary.totalTax, 0);
+  assert.equal('totalTax' in summary, false);
   assert.equal(summary.grandRevenue, 0);
   assert.equal(summary.transactionCount, 0);
   assert.deepEqual(summary.paymentTotals, { cash: 0, QRIS: 0 });
@@ -115,7 +115,7 @@ test('excludes void and expired orders then subtracts operating expenses from gr
   assert.equal(all.margin, 85_000);
   assert.equal(all.operatingExpenses, 20_000);
   assert.equal(all.netProfit, 65_000);
-  assert.equal(all.grandRevenue, 160_000);
+  assert.equal(all.grandRevenue, 150_000);
 
   const shiftOne = summarizeSales(dailyOrders, '2026-07-27', {
     operationalEntries,
@@ -124,5 +124,5 @@ test('excludes void and expired orders then subtracts operating expenses from gr
   assert.equal(shiftOne.revenue, 100_000);
   assert.equal(shiftOne.operatingExpenses, 15_000);
   assert.equal(shiftOne.netProfit, 45_000);
-  assert.deepEqual(shiftOne.paymentTotals, { cash: 110_000, QRIS: 0 });
+  assert.deepEqual(shiftOne.paymentTotals, { cash: 100_000, QRIS: 0 });
 });

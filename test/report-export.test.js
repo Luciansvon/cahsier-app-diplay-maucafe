@@ -10,8 +10,7 @@ test('sales workbook uses explicit financial definitions through net profit', ()
     filenamePrefix: 'Laporan_maucafe-jepara',
     summary: {
       revenue: 100_000,
-      totalTax: 10_000,
-      grandRevenue: 110_000,
+      grandRevenue: 100_000,
       totalCost: 40_000,
       margin: 60_000,
       operatingExpenses: 15_000,
@@ -34,7 +33,6 @@ test('sales workbook uses explicit financial definitions through net profit', ()
   assert.equal(workbook.filename, 'Laporan_maucafe-jepara_20260727.xls');
   for (const label of [
     'Penjualan Bersih',
-    'Pajak Terkumpul',
     'Total Diterima',
     'Total HPP',
     'Laba Kotor',
@@ -43,6 +41,7 @@ test('sales workbook uses explicit financial definitions through net profit', ()
   ]) {
     assert.match(workbook.html, new RegExp(label));
   }
+  assert.doesNotMatch(workbook.html, /Pajak|PBJT|PPN/i);
   assert.doesNotMatch(workbook.html, /Total Profit/);
   assert.match(workbook.html, /&lt;Kopi&gt;/);
   assert.doesNotMatch(workbook.html, /<Kopi>/);

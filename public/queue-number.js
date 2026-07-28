@@ -26,6 +26,19 @@ export function normalizeQueueNumber(value) {
   return text.replace(/^0+(?=\d)/, '');
 }
 
+export function queueNumberPage(values, requestedPage = 0, pageSize = 6) {
+  const numbers = (Array.isArray(values) ? values : []).map(normalizeQueueNumber);
+  const safePageSize = Number.isSafeInteger(pageSize) && pageSize > 0 ? pageSize : 6;
+  const pageCount = Math.max(1, Math.ceil(numbers.length / safePageSize));
+  const rawPage = Number.isSafeInteger(requestedPage) ? requestedPage : 0;
+  const pageIndex = ((rawPage % pageCount) + pageCount) % pageCount;
+  return {
+    numbers: numbers.slice(pageIndex * safePageSize, (pageIndex + 1) * safePageSize),
+    pageIndex,
+    pageCount,
+  };
+}
+
 function numberToWords(value) {
   if (value < 12) return SMALL_NUMBERS[value];
   if (value < 20) return `${numberToWords(value - 10)} belas`;

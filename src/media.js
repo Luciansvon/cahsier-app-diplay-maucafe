@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
+const MAX_MEDIA_ITEMS = 20;
+const MAX_IMAGE_ITEMS = 15;
+const MAX_VIDEO_ITEMS = 5;
+
 function clone(value) {
   return structuredClone(value);
 }
@@ -69,8 +73,14 @@ export function addMediaItem(currentState, input, now = new Date().toISOString()
   state.mediaPlaylist = Array.isArray(state.mediaPlaylist) ? state.mediaPlaylist : [];
   const type = input?.type;
   if (!['video', 'image'].includes(type)) throw new Error('Tipe media tidak valid');
-  if (type === 'video' && state.mediaPlaylist.filter((item) => item.type === 'video').length >= 5) {
-    throw new Error('Playlist maksimal 5 video');
+  if (state.mediaPlaylist.length >= MAX_MEDIA_ITEMS) {
+    throw new Error(`Playlist maksimal ${MAX_MEDIA_ITEMS} media`);
+  }
+  if (type === 'video' && state.mediaPlaylist.filter((item) => item.type === 'video').length >= MAX_VIDEO_ITEMS) {
+    throw new Error(`Playlist maksimal ${MAX_VIDEO_ITEMS} video`);
+  }
+  if (type === 'image' && state.mediaPlaylist.filter((item) => item.type === 'image').length >= MAX_IMAGE_ITEMS) {
+    throw new Error(`Playlist maksimal ${MAX_IMAGE_ITEMS} foto`);
   }
   const durationSeconds = type === 'video' ? Number(input.durationSeconds) : null;
   if (type === 'video' && (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || durationSeconds > 120)) {

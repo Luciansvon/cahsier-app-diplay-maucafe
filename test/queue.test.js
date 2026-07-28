@@ -16,7 +16,6 @@ import {
   rolloverBusinessDay,
   updateOwnerPin,
   updateProduct,
-  updateTaxConfig,
   verifyOwnerPin,
 } from '../src/queue.js';
 
@@ -41,7 +40,7 @@ test('creates a paid order without a leading zero and keeps the price snapshot',
   assert.equal(result.order.status, 'waiting');
   assert.equal(result.order.total, 36000);
   assert.equal(result.order.grandTotal, 36000);
-  assert.equal(result.order.taxAmount, 0);
+  assert.equal('taxAmount' in result.order, false);
   assert.deepEqual(result.order.items[0], {
     productId: 'kopi-susu',
     productName: 'Kopi Susu',
@@ -61,7 +60,7 @@ test('resets numbering automatically when Jakarta business date changes', () => 
 
   assert.equal(result.order.queueNumber, '1');
   assert.equal(result.state.orders[0].status, 'expired');
-  assert.equal(result.state.orders[0].paymentStatus, 'void');
+  assert.equal(result.state.orders[0].paymentStatus, 'paid');
   assert.equal(result.state.orders[0].expiredReason, 'Pergantian hari operasional');
 });
 
@@ -91,7 +90,7 @@ test('rollover expires stale active orders without resetting speech event IDs', 
   assert.equal(state.businessDate, '2026-07-24');
   assert.equal(state.nextQueueNumber, 1);
   assert.equal(state.orders[0].status, 'expired');
-  assert.equal(state.orders[0].paymentStatus, 'void');
+  assert.equal(state.orders[0].paymentStatus, 'paid');
   assert.equal(state.orders[0].expiredAt, '2026-07-24T02:00:00.000Z');
   assert.equal(state.orders[0].expiredReason, 'Pergantian hari operasional');
   assert.equal(state.activeCall, null);
@@ -108,6 +107,30 @@ test('calling and recalling changes the event without duplicating the order', ()
   assert.equal(recalled.state.activeCall.queueNumber, '1');
   assert.equal(recalled.state.activeCall.eventId, 2);
   assert.equal(recalled.order.status, 'ready');
+});
+
+test('one checkout keeps one queue number and calling next preserves prior ready order', () => {
+  const first = createOrder(stateWithMenu(), {
+    items: [{ productId: 'kopi-susu', quantity: 1 }],
+    paymentMethod: 'cash',
+  }, NOW);
+  const second = createOrder(first.state, {
+    items: [{ productId: 'kopi-susu', quantity: 3 }],
+    paymentMethod: 'QRIS',
+  }, '2026-07-23T02:01:00.000Z');
+
+  assert.equal(first.order.queueNumber, '1');
+  assert.equal(second.order.queueNumber, '2');
+  assert.equal(second.order.items[0].quantity, 3);
+  assert.equal(second.state.orders.length, 2);
+
+  const firstCalled = callOrder(second.state, first.order.id, '2026-07-23T02:02:00.000Z');
+  const secondCalled = callOrder(firstCalled.state, second.order.id, '2026-07-23T02:03:00.000Z');
+
+  assert.equal(secondCalled.state.activeCall.queueNumber, '2');
+  assert.equal(secondCalled.state.orders.find((order) => order.id === first.order.id).status, 'ready');
+  assert.equal(secondCalled.state.orders.find((order) => order.id === second.order.id).status, 'ready');
+  assert.equal(secondCalled.state.orders.length, 2);
 });
 
 test('call event IDs keep increasing after queue reset so TV speech is not suppressed', () => {
@@ -174,11 +197,10 @@ test('reset cancels active orders and preserves closed sales history', () => {
 
   assert.equal(state.orders.length, 2);
   assert.equal(state.orders[0].status, 'completed');
-  assert.equal(state.orders[1].status, 'cancelled');
-  assert.equal(state.orders[1].paymentStatus, 'void');
+  assert.equal(state.orders[1].status, 'expired');
+  assert.equal(state.orders[1].paymentStatus, 'paid');
   assert.equal(state.orders[1].updatedAt, '2026-07-23T02:05:00.000Z');
-  assert.equal(state.orders[1].cancelReason, 'Reset antrean oleh Owner');
-  assert.equal(state.orders[1].approvedBy, 'owner');
+  assert.equal(state.orders[1].expiredReason, 'Reset antrean oleh Owner');
   assert.equal(state.activeCall, null);
   assert.equal(state.nextQueueNumber, 1);
 });
@@ -290,29 +312,21 @@ test('updates owner PIN successfully and rejects invalid input', () => {
   assert.throws(() => updateOwnerPin(updated.state, '5678', 'abc'), /4 hingga 8 angka/i);
 });
 
-test('creates order with tax when taxConfig is enabled', () => {
+test('new orders ignore legacy tax settings', () => {
   let state = stateWithMenu();
-  state = updateTaxConfig(state, { enabled: true, label: 'PPN', rate: 10 }).state;
+  state.taxConfig = { enabled: true, label: 'PPN', rate: 10 };
   const result = createOrder(state, {
     items: [{ productId: 'kopi-susu', quantity: 1 }],
     paymentMethod: 'cash',
   }, NOW);
 
   assert.equal(result.order.total, 18000);
-  assert.equal(result.order.taxAmount, 1800);
-  assert.equal(result.order.grandTotal, 19800);
-  assert.equal(result.order.taxLabel, 'PPN');
-  assert.equal(result.order.taxRate, 10);
+  assert.equal(result.order.grandTotal, 18000);
+  assert.equal('taxAmount' in result.order, false);
+  assert.equal('taxLabel' in result.order, false);
+  assert.equal('taxRate' in result.order, false);
 });
 
-test('updateTaxConfig validates input and updates state', () => {
-  let state = stateWithMenu();
-  const result = updateTaxConfig(state, { enabled: true, label: 'PBJT', rate: 10 });
-  assert.equal(result.taxConfig.enabled, true);
-  assert.equal(result.taxConfig.label, 'PBJT');
-  assert.equal(result.taxConfig.rate, 10);
-
-  assert.throws(() => updateTaxConfig(state, { rate: -5 }), /antara 0 dan 100/i);
-  assert.throws(() => updateTaxConfig(state, { rate: 150 }), /antara 0 dan 100/i);
-  assert.throws(() => updateTaxConfig(state, { label: '' }), /wajib diisi/i);
+test('initial state has no tax configuration', () => {
+  assert.equal('taxConfig' in stateWithMenu(), false);
 });

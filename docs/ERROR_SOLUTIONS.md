@@ -453,10 +453,10 @@ Server membandingkan kandidat PIN dengan hash Owner global, seluruh Admin outlet
 Verifikasi:
 Unit test helper hash dan regression test API membuktikan pembuatan Mitra/Karyawan, reset PIN Karyawan, rotasi Admin, serta rotasi Owner menolak PIN duplikat. Fixture legacy membuktikan login Owner, Admin, Mitra, dan Karyawan pada browser/native fail closed tanpa membocorkan identitas konflik. `npm test` lulus `88/88`, `npm run build` lulus, dan audit read-only data aktif menemukan empat credential Admin lama masih memakai PIN demo yang sama sehingga harus dirotasi sebelum runtime baru digunakan.
 
-## ERR-030 - OPEN - Video promo berhenti saat suara panggilan antrean
+## ERR-030 - Video promo berhenti saat suara panggilan antrean
 
 Status:
-`OPEN`. Penyebab sudah dibuktikan, tetapi perbaikan belum diimplementasikan.
+`FIXED`.
 
 Kondisi:
 Video promo sedang berjalan di Display. Ketika event panggilan antrean masuk dan suara nomor diputar, gambar video ikut berhenti. Pada reproduksi browser, video berjalan sampai detik `4,67`, lalu berubah menjadi paused ketika panggilan nomor `42` diterima.
@@ -464,11 +464,190 @@ Video promo sedang berjalan di Display. Ketika event panggilan antrean masuk dan
 Penyebab:
 Fungsi `announce()` di `public/display.js` mengatur video menjadi muted lalu memanggil `promoVideo.pause()`. Video hanya diputar kembali melalui callback `speech.onend` atau `speech.onerror`. Akibatnya video pasti berhenti selama panggilan dan dapat tetap berhenti jika callback suara terlambat atau tidak terpanggil.
 
-Solusi yang direncanakan:
-Biarkan visual video terus berjalan. Saat suara antrean diputar, hanya audio promo yang dimute. Setelah suara selesai atau gagal, kembalikan status mute sebelumnya. Tambahkan fallback agar status audio tetap dipulihkan ketika browser TV tidak mengirim callback akhir suara.
+Solusi:
+Fungsi panggilan tidak lagi menjeda atau memulai ulang video. Visual video terus berjalan, audio promo dimute sementara, lalu status mute sebelumnya dipulihkan saat suara selesai, gagal, API speech tidak tersedia, atau safety timeout 15 detik tercapai. Generation guard mencegah callback panggilan lama mengubah audio panggilan yang lebih baru.
 
-Verifikasi diagnosis:
+Verifikasi:
 - Pemeriksaan source menemukan pemanggilan `promoVideo.pause()` pada alur `announce()`.
 - Reproduksi browser dengan event panggilan terkontrol mencatat video dalam kondisi playing sebelum event dan paused setelah event.
-- Reproduksi tidak membuat order baru atau mengubah data server.
-- Belum ada verifikasi perbaikan karena kode belum diubah.
+- UI contract test membuktikan `announce()` tidak lagi memanggil `pause()`/`play()`, melakukan mute, memakai helper pemulihan audio, dan memiliki safety timeout.
+- Smoke browser setelah perbaikan menerima active call nomor `1`; saat Web Speech tidak tersedia, fallback tetap menjaga video pada `paused: false`. Suara asli tetap perlu dicek pada TV fisik.
+- `npm test` lulus `90/90`.
+
+## ERR-031 - Flow operasional masih mengizinkan Owner menugaskan outlet lama ke Mitra
+
+Kondisi:
+Owner masih memiliki route dan kontrol UI untuk memilih Mitra lalu menugaskan outlet yang sudah ada. Flow ini berlawanan dengan revisi klien: Mitra harus terdaftar lebih dulu, mengajukan outlet miliknya, lalu menunggu persetujuan Owner.
+
+Penyebab:
+Implementasi franchise awal mempertahankan helper assignment legacy dan route `POST /api/owner/outlets/:id/assign` sebagai flow operasional.
+
+Solusi:
+Route, kontrol Owner, dan helper assignment dihapus. Satu-satunya flow operasional sekarang adalah Owner membuat akun Mitra, Mitra login dan mengajukan outlet `pending`, lalu Owner menyetujui outlet tersebut. Outlet pending belum dapat membuka Kasir/Display.
+
+Verifikasi:
+Regression test membuktikan route assignment lama menghasilkan `404`, proposal hanya dapat dibuat melalui sesi Mitra, outlet pending belum tersedia, dan outlet aktif setelah approval Owner. `npm test` lulus `90/90`.
+
+## ERR-032 - Ringkasan Mitra berubah mengikuti outlet yang dipilih
+
+Kondisi:
+Mitra yang memiliki beberapa outlet tidak mendapat gambaran total bisnisnya karena kartu ringkasan hanya menampilkan outlet terpilih.
+
+Penyebab:
+Endpoint dashboard hanya mengirim daftar ringkasan per outlet dan frontend memakai ringkasan outlet aktif untuk seluruh kartu metrik.
+
+Solusi:
+Server menambahkan `summary` gabungan seluruh outlet aktif milik Mitra untuk penjualan, penerimaan, HPP, laba, biaya, transaksi, metode pembayaran, dan saldo cup. Pemilih outlet tetap digunakan hanya untuk operasi yang memang outlet-scoped.
+
+Verifikasi:
+Regression test membuat dua outlet milik satu Mitra dengan transaksi Tunai dan QRIS berbeda, lalu membuktikan seluruh nilai agregat dijumlahkan dengan benar. UI contract test membuktikan kartu memakai `dashboard.summary`. `npm test` lulus `90/90`.
+
+## ERR-033 - Pajak masih muncul pada transaksi, laporan, dan pengaturan
+
+Kondisi:
+Source aktif masih menghitung tax/grand total, menyimpan konfigurasi pajak, menampilkan kontrol Owner/Kasir, serta mencetak pajak pada struk dan laporan.
+
+Penyebab:
+Model transaksi lama memasukkan `taxConfig`, `taxAmount`, `taxRate`, dan `taxLabel` ke berbagai lapisan sehingga penghapusan UI saja tidak cukup.
+
+Solusi:
+Perhitungan dan route konfigurasi pajak dihapus dari server, queue, ringkasan, struk, ekspor, serta UI. Order baru memakai subtotal sebagai total diterima. Normalisasi runtime membuang `taxConfig` legacy dan laporan mengabaikan field pajak historis tanpa menghapus histori order.
+
+Verifikasi:
+Unit dan integration test membuktikan order baru mengabaikan konfigurasi legacy, payload aktif tidak mengekspos pajak, route lama `404`, struk/ekspor/UI tidak memuat label pajak, dan laporan memakai total transaksi tanpa tax. `npm test` lulus `90/90`.
+
+## ERR-034 - Display tidak memberi konteks pesanan yang sedang dibuat
+
+Kondisi:
+Kasir memiliki antrean waiting, tetapi Display hanya menampilkan nomor yang sedang dipanggil sehingga pelanggan tidak tahu pesanannya masih diproses.
+
+Penyebab:
+Public display state tidak memiliki daftar aman nomor waiting dan markup Display tidak memiliki tempat untuk status persiapan.
+
+Solusi:
+Server mengirim seluruh `preparingQueueNumbers` yang diurutkan oldest-first tanpa ID order atau data internal. Display menampilkan enam nomor per halaman pada bagian `Sedang dibuat`, berotasi setiap empat detik, dan mengosongkan nomor saat state stale.
+
+Verifikasi:
+Integration test membuktikan delapan nomor waiting muncul oldest-first pada public state tanpa membocorkan order ID. Unit test pagination membuktikan halaman 1–6 dan 7–8. Browser smoke membuktikan rotasi antardua halaman berjalan. `npm test` lulus `93/93`.
+
+## ERR-035 - Informasi Shift Mitra dan Kasir sulit dibaca pada HP
+
+Kondisi:
+Nama shift, nama Kasir, saldo awal, dan tombol force-close berada dalam satu alur teks panjang. Pada lebar HP, komponen sulit dipindai dan berisiko melebar.
+
+Penyebab:
+Status shift dirender sebagai satu kalimat dan kartu belum memiliki aturan shrink/wrap khusus.
+
+Solusi:
+Status shift dipecah menjadi label, Kasir, dan Saldo awal pada baris terpisah. Kartu dibuat shrink-safe, teks boleh wrap, tombol mobile memakai lebar penuh, dan label force-close diseragamkan ke Bahasa Indonesia.
+
+Verifikasi:
+UI contract test membuktikan struktur dan aturan wrap. QA browser pada viewport mobile membuktikan halaman Mitra dan Kasir tidak memiliki overflow horizontal, tiga baris status terbaca, dan tombol `Tutup Paksa Shift` utuh. `npm test` lulus `90/90`.
+
+## ERR-036 - Playlist satu video berhenti setelah MP4 selesai
+
+Kondisi:
+Playlist Display hanya berisi satu video berdurasi sekitar 10 detik. Setelah video mencapai akhir, gambar berhenti pada frame terakhir dan properti browser berubah menjadi `ended: true`, `paused: true`.
+
+Penyebab:
+Handler `ended` memajukan index playlist kembali ke item yang sama. `renderMedia()` melihat URL tidak berubah sehingga tidak menjalankan `load()` atau `play()` lagi.
+
+Solusi:
+Transisi `ended` sekarang menandai item yang sama untuk diputar ulang, mengatur `currentTime` ke `0`, lalu memanggil `play()`. Transisi akibat error tidak memakai retry paksa agar file rusak tidak membentuk loop error tanpa henti.
+
+Verifikasi:
+Regression contract test membuktikan jalur replay tersedia. Smoke browser dengan MP4 `10,005` detik mencatat video mulai pada `0,273`, lalu setelah satu durasi penuh sudah kembali ke `1,047` dengan `ended: false` dan `paused: false`.
+
+## ERR-037 - Dashboard Owner belum memiliki ringkasan gabungan per Mitra
+
+Kondisi:
+Owner hanya melihat total jaringan dan kartu per outlet sehingga performa Doni dengan tiga outlet tidak dapat dibandingkan langsung dengan Dedi yang memiliki dua outlet. Pada implementasi awal kartu Mitra, daftar outlet juga langsung tertutup lagi ketika refresh SSE merender ulang dashboard.
+
+Penyebab:
+`/api/owner/multi-summary` hanya membentuk `summaries` per outlet dan `grandTotals`; agregasi berdasarkan `partnerId` baru tersedia pada endpoint Mitra. Frontend juga belum menyimpan ID kartu Mitra yang sedang dibuka.
+
+Solusi:
+Server menambahkan `partnerSummaries` serta `unassignedSummary`, termasuk finansial, antrean, jumlah outlet aktif/pending, dan saldo cup. Owner merender metrik yang selalu terlihat serta drill-down outlet. Set `expandedPartnerIds` mempertahankan kartu terbuka ketika data live dirender ulang.
+
+Verifikasi:
+- Regression test membuktikan Doni tiga outlet dan Dedi dua outlet diagregasi terpisah; outlet pending tidak masuk finansial; outlet aktif tanpa Mitra tetap ada; saldo cup ikut dijumlahkan.
+- Browser smoke menampilkan Doni `3 outlet aktif`, Total Diterima `Rp240.000`, Profit Bersih `Rp144.000`, `9` transaksi, `9` antrean aktif, saldo cup `35`; Dedi `2 outlet aktif`, Total Diterima `Rp60.000`, Profit Bersih `Rp36.000`, `1` transaksi, `1` antrean aktif, saldo cup `10`.
+- Drill-down Doni tetap terbuka setelah refresh SSE dan menampilkan tiga outlet. Viewport Owner 390 px tidak memiliki overflow horizontal.
+- `npm test` lulus `93/93` dan `npm run build` lulus.
+
+## ERR-038 - Display fullscreen menyembunyikan status antrean dan chrome promo mengecilkan iklan
+
+Kondisi:
+Tanpa active call, panel antrean disembunyikan dan promo menjadi fullscreen. Teks promo, counter, padding, serta dekorasi memakai ruang yang seharusnya dipakai media.
+
+Penyebab:
+CSS memakai selector `has-active-call` untuk mengubah layout dan markup promo memiliki beberapa lapisan non-media. Public state juga memotong waiting menjadi enam nomor sehingga nomor berikutnya tidak pernah mencapai browser.
+
+Solusi:
+Display menjadi split permanen 34/66. Status waiting dipindahkan ke panel antrean dan berotasi enam nomor per empat detik. Panel kanan hanya memuat video/foto full-bleed; mode `cover` tetap default dan `contain` tetap didukung.
+
+Verifikasi:
+- UI contract membuktikan split tetap, chrome promo dihapus, helper rotasi digunakan, dan video tidak dijeda oleh alur suara.
+- Browser smoke mengukur rasio panel `0,34/0,66`, padding promo `0px`, media mengisi panel `1267,19 × 1080`, `object-fit: cover`, serta `border-radius: 0px`.
+- Delapan waiting berotasi dari `1, 2, 3, 4, 5, 6` ke `7, 8`. Setelah nomor 1 lalu 2 dipanggil, nomor besar menjadi `2`, kedua order tetap `ready`, dan waiting menjadi `3–8`.
+- Saat alur panggilan aktif, video tetap `paused: false` dan `ended: false`. Console browser mencatat `0` error/warning.
+- `npm test` lulus `93/93` dan `npm run build` lulus.
+
+## ERR-REVIEW-2026-07-28 - Audit akses franchise, laporan pembayaran, dan media
+
+### Gejala
+
+1. Pesanan yang sudah dibayar berubah menjadi `void` saat pergantian hari atau reset antrean sehingga hilang dari laporan, kas shift, HPP, dan estimasi penggunaan cup.
+2. Approval pembatalan tidak menerapkan pemeriksaan benturan PIN yang sama seperti login Owner.
+3. Upload promo tidak memiliki batas total storage atau jumlah foto.
+4. Kegagalan setelah state media/foto produk dikomit dapat menghapus file baru yang sudah direferensikan database.
+5. Outlet pending tanpa `adminPinHash` dapat membuat startup berikutnya gagal.
+
+### Root cause
+
+- Status antrean dan status pembayaran dicampur.
+- Jalur approval Owner memakai validasi lebih lemah daripada login Owner.
+- Rate limit upload tidak disertai quota storage dan jumlah item.
+- Cleanup file berada pada blok `catch` yang juga menangkap kegagalan setelah commit state.
+- Credential outlet pending tidak dinormalisasi untuk kebutuhan restart.
+
+### Solusi
+
+- Sesi Karyawan dan Mitra divalidasi ulang terhadap registry terbaru.
+- Rollover/reset hanya menutup antrean; pembayaran `paid` tetap `paid`. Laporan dan ledger menghitung berdasarkan status pembayaran.
+- Approval pembatalan fail-closed saat PIN bertabrakan.
+- Playlist dibatasi 20 media, 15 foto, 5 video; foto maksimal 5 MB dan storage promo per outlet maksimal 100 MB.
+- File upload hanya dibersihkan jika state belum berhasil dikomit.
+- Outlet pending/approved selalu memiliki credential hash tanpa plaintext.
+- Regression test dan GitHub Actions CI ditambahkan.
+
+### Verifikasi wajib
+
+Jalankan:
+
+```bash
+npm test
+npm run build
+```
+
+Regression test: `test/review-regressions.test.js`.
+
+## ERR-018 - Pengelolaan & Pemilihan Menu Outlet oleh Mitra dari Master Owner
+
+Kondisi:
+Mitra tidak memiliki akses untuk memilih menu yang dijual di outletnya sendiri. Jika Owner memperbarui harga/detail Master Menu, status `active` outlet pada menu tersebut tertimpa oleh data Master Menu.
+
+Penyebab:
+1. Belum ada API dan UI di Panel Mitra bagi Mitra untuk memilih (aktif/nonaktifkan) menu outlet miliknya dari daftar Master Menu yang dibuat oleh Owner.
+2. Penggabungan `masterProducts` di `initializeOutlet` dan `mutateMasterProducts` sebelumnya langsung menimpa array `products` outlet tanpa mempertahankan status `active` lokal per outlet yang sudah disesuaikan oleh Mitra.
+
+Solusi:
+1. Menambahkan endpoint GET `/api/partner/outlets/:outletId/products` dan PATCH `/api/partner/outlets/:outletId/products/:productId` dengan verifikasi kepemilikan outlet (`partnerOwnsOutlet`) dan penyaringan data sensitif (HPP/cost disembunyikan sesuai `AGENTS.md`).
+2. Memperbarui logika penggabungan produk master sehingga status `active` per outlet tetap dipertahankan saat Owner memperbarui atribut Master Menu, selama produk tersebut tidak dinonaktifkan secara global oleh Owner: `active = (mp.active !== false) && (existing ? existing.active !== false : true)`.
+3. Menambahkan tab UI **"Pilih Menu"** pada Panel Mitra (`partner.html`, `partner.css`, `partner.js`) dengan fitur filter kategori dan tombol sakelar toggle Aktif/Nonaktif per menu.
+
+Verifikasi:
+1. Automated unit test `test/server.test.js` memverifikasi Mitra dapat mengambil daftar produk tersaring, mengubah status aktif menu outlet miliknya sendiri, dan menolak akses Mitra yang tidak berwenang.
+2. `npm test` lulus seluruh 98 unit/integration test.
+3. `npm run build` lulus tanpa error.
+

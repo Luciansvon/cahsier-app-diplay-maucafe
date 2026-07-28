@@ -31,7 +31,7 @@ Perangkat satu jaringan membuka `http://<IP-PC-SERVER>:3000`. Untuk akses dari l
 
 1. Login memakai username Karyawan + PIN. PIN Admin outlet lama tetap tersedia sebagai akses bootstrap.
 2. Buka shift dan masukkan saldo awal.
-3. Buat order Tunai/QRIS. Server menentukan harga, HPP snapshot, pajak, total, nomor antrean, shift, dan identitas Karyawan.
+3. Buat order Tunai/QRIS. Server menentukan harga, HPP snapshot, total, nomor antrean, shift, dan identitas Karyawan.
 4. Panggil/recall/selesaikan order.
 5. Catat kas masuk/keluar, setoran, biaya, dan pergerakan cup.
 6. Tutup shift memakai kas fisik. Selisih wajib memiliki alasan.
@@ -42,7 +42,7 @@ Order ditolak jika tidak ada shift aktif. Pembatalan memerlukan sesi Kasir/Owner
 
 Mitra hanya melihat outlet miliknya. Panel Mitra mendukung:
 
-- ringkasan Penjualan Bersih, Total Diterima, HPP, Laba Kotor, Biaya Operasional, dan Profit Bersih;
+- ringkasan gabungan Penjualan Bersih, Total Diterima, HPP, Laba Kotor, Biaya Operasional, dan Profit Bersih dari seluruh outlet miliknya;
 - akun Karyawan, aktivasi/nonaktivasi, dan reset PIN;
 - force-close shift dengan alasan yang diaudit;
 - kas/biaya dan ledger cup;
@@ -54,19 +54,25 @@ Outlet baru baru tersedia untuk Kasir/Display setelah Owner menyetujuinya.
 
 ### Owner
 
-Owner dapat melihat seluruh outlet, membuat Mitra, menugaskan/menyetujui outlet, melihat audit, mengelola master menu global, HPP, pemakaian cup, foto produk, pajak, media, PIN, laporan, dan operasi berisiko.
+Owner dapat melihat total seluruh jaringan dan kartu ringkasan per Mitra. Setiap kartu menjumlahkan seluruh outlet aktif milik Mitra untuk Total Diterima, Profit Bersih, transaksi, antrean aktif, dan saldo cup. Daftar outlet dapat dibuka dari kartu tanpa kehilangan ringkasan; outlet aktif lama tanpa Mitra tetap muncul dalam kelompok tersendiri.
+
+Owner juga dapat membuat Mitra, menyetujui outlet yang diajukan Mitra, melihat audit, mengelola master menu global, HPP, pemakaian cup, foto produk, media, PIN, laporan, dan operasi berisiko. Outlet lama tidak ditugaskan ke Mitra melalui flow operasional.
 
 Perubahan master menu disimpan satu kali dan disinkronkan ke seluruh outlet aktif/pending dalam transaksi SQLite. Outlet yang dibuat kemudian mewarisi master menu terbaru.
 
 ## Display TV
 
-- Idle: media promo memenuhi layar.
-- Ada panggilan: layar otomatis terbagi antara nomor antrean dan media.
-- Selesai order: active call dibersihkan dan media kembali fullscreen.
+- Layar selalu terbagi 34% panel antrean dan 66% panel media.
+- Panel antrean tetap terlihat saat belum ada panggilan dan menampilkan `Belum ada pesanan siap`.
+- Antrean waiting tampil oldest-first sebagai `Sedang dibuat`, enam nomor per halaman, lalu berotasi setiap empat detik.
+- Satu checkout tetap menghasilkan satu nomor, berapa pun jumlah itemnya. Panggilan berikutnya tidak menghapus order `ready` sebelumnya.
+- Foto/video memenuhi seluruh panel kanan tanpa judul promo, harga otomatis, counter, dekorasi, border, atau padding luar.
+- Jika belum ada media, panel kanan memakai latar netral.
 - Playlist menerima maksimal lima video MP4; tiap video maksimal 120 detik.
+- Video pada playlist berulang otomatis, termasuk ketika playlist hanya berisi satu video.
 - Foto JPG/PNG/WebP tidak dihitung sebagai video dan memiliki durasi 3–60 detik.
 - Video memakai HTTP byte-range, ETag, dan Last-Modified.
-- Saat suara panggilan berjalan, video dijeda lalu dilanjutkan dari posisi terakhir.
+- Saat suara panggilan berjalan, visual video tetap berjalan; hanya audio promo yang dimute sementara lalu dikembalikan.
 - SSE memberi update cepat; polling lima detik dan batas stale 30 detik mencegah nomor lama dianggap valid.
 
 Browser TV biasanya membutuhkan satu klik untuk mengaktifkan Web Speech.
