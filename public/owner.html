@@ -416,16 +416,26 @@
   <dialog id="menu-mgmt-modal" class="modal-dialog">
     <div class="modal-card wide-modal">
       <div class="modal-header">
-        <h2 id="menu-mgmt-modal-title">Kelola Menu Kedai</h2>
+        <div>
+          <h2 id="menu-mgmt-modal-title">Master Menu Semua Outlet</h2>
+          <span class="global-scope-badge">SCOPE: GLOBAL MASTER OWNER</span>
+        </div>
         <button id="close-menu-mgmt-modal" type="button" class="close-icon-btn" aria-label="Tutup">×</button>
       </div>
-      <div class="outlet-selector-wrapper modal-outlet-field">
-        <label for="menu-modal-outlet-select">OUTLET YANG DIKELOLA:</label>
-        <select id="menu-modal-outlet-select" class="outlet-dropdown"></select>
+
+      <p class="modal-scope-help">
+        Nama, harga, HPP, kategori, foto, dan pemakaian cup berlaku ke <strong>seluruh outlet</strong> secara otomatis.
+        Mitra per outlet tetap dapat menonaktifkan produk untuk toko mereka.
+      </p>
+
+      <div class="menu-mgmt-actions-bar">
+        <button id="toggle-single-add-btn" type="button" class="secondary small-btn">+ Tambah Satu Menu</button>
+        <button id="toggle-bulk-import-btn" type="button" class="primary small-btn">📂 Tambah Banyak Menu (Bulk Import)</button>
+        <button id="download-template-btn" type="button" class="ghost small-btn">📥 Unduh Template CSV</button>
       </div>
 
-      <details class="add-product-details">
-        <summary class="add-product-summary">+ Tambah Menu Baru</summary>
+      <details id="add-product-details" class="add-product-details">
+        <summary class="add-product-summary">Form Tambah Satu Menu</summary>
         <form id="add-product-form" class="add-product-form">
           <div class="form-grid-2">
             <label class="modal-field">
@@ -462,11 +472,97 @@
         </form>
       </details>
 
+      <section id="bulk-import-section" class="bulk-import-section" hidden>
+        <div class="bulk-import-card">
+          <h3>Import Massal (CSV / TSV / Excel Paste)</h3>
+          <p class="form-help">
+            Unggah file CSV/TSV atau tempel (paste) data dari Excel / Google Sheets dengan format kolom:<br>
+            <code>id, name, category, price, cost, cupUsage, active</code> (kosongkan ID untuk menu baru).
+          </p>
+
+          <div class="bulk-input-tabs">
+            <button id="bulk-tab-file-btn" type="button" class="tab active">Upload File (.csv / .tsv)</button>
+            <button id="bulk-tab-paste-btn" type="button" class="tab">Copypaste Spreadsheet</button>
+          </div>
+
+          <div id="bulk-file-panel" class="bulk-panel">
+            <label class="modal-field">
+              <span>Pilih File CSV / TSV</span>
+              <input id="bulk-file-input" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values">
+            </label>
+          </div>
+
+          <div id="bulk-paste-panel" class="bulk-panel" hidden>
+            <label class="modal-field">
+              <span>Tempel Teks Spreadsheet di sini</span>
+              <textarea id="bulk-paste-text" rows="5" placeholder="id&#9;name&#9;category&#9;price&#9;cost&#9;cupUsage&#9;active&#10;&#9;Es Kopi Susu&#9;Kopi&#9;15000&#9;7000&#9;1&#9;true"></textarea>
+            </label>
+          </div>
+
+          <div class="button-group bulk-actions-row">
+            <button id="bulk-preview-btn" type="button" class="secondary">Intip Preview / Dry-Run</button>
+            <button id="bulk-commit-btn" type="button" class="success" disabled>Impor & Simpan Semua Menu</button>
+          </div>
+
+          <div id="bulk-error-alert" class="error-banner" role="alert" hidden></div>
+
+          <div id="bulk-status-summary" class="bulk-status-summary" hidden></div>
+
+          <div id="bulk-preview-wrapper" class="report-table-wrapper bulk-preview-wrapper" hidden>
+            <table class="report-table bulk-preview-table">
+              <thead>
+                <tr>
+                  <th scope="col"># Baris</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">ID</th>
+                  <th scope="col">Nama Menu</th>
+                  <th scope="col">Kategori</th>
+                  <th scope="col">Harga Jual</th>
+                  <th scope="col">HPP</th>
+                  <th scope="col">Cup</th>
+                  <th scope="col">Aktif</th>
+                  <th scope="col">Keterangan Error</th>
+                </tr>
+              </thead>
+              <tbody id="bulk-preview-tbody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <hr class="modal-divider">
 
       <div class="modal-section-title">
-        <h3>Daftar Menu Saat Ini</h3>
+        <h3>Daftar Master Menu</h3>
       </div>
+
+      <div class="menu-list-toolbar">
+        <div class="form-grid-2">
+          <input id="menu-search-input" type="text" placeholder="Cari nama menu..." class="small-input">
+          <select id="menu-category-filter" class="small-select">
+            <option value="all">Semua Kategori</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="bulk-toolbar" class="bulk-selection-toolbar" hidden>
+        <label class="bulk-checkbox-label">
+          <input id="bulk-select-all-cb" type="checkbox">
+          <span id="bulk-selected-count">0 terpilih</span>
+        </label>
+        <div class="bulk-toolbar-actions">
+          <button id="bulk-enable-selected" type="button" class="secondary small-btn">Aktifkan Massal</button>
+          <button id="bulk-disable-selected" type="button" class="ghost small-btn">Nonaktifkan Massal</button>
+          <select id="bulk-change-category-select" class="small-select">
+            <option value="">Ubah Kategori Massal...</option>
+            <option value="Kopi">Kopi</option>
+            <option value="Non-Kopi">Non-Kopi</option>
+            <option value="Makanan">Makanan</option>
+          </select>
+        </div>
+      </div>
+
       <div id="menu-mgmt-list" class="menu-mgmt-list">
         <!-- Diisi oleh JS -->
       </div>

@@ -747,3 +747,63 @@ Verifikasi:
 - `npm run build`: PASS
 - `git diff --check`: PASS
 - Waktu: 2026-07-28T04:08:00.000Z
+
+## AUDIT-2026-07-28 - Bulk Menu Owner, Responsive Anti-Auto-Zoom, dan Keamanan Server
+
+### Kondisi/gejala
+
+1. Scope Master Menu Owner di UI membingungkan pengguna dengan dropdown outlet padahal mutasi master produk berdampak global ke seluruh outlet.
+2. Tidak ada endpoint bulk import menu; mengimpor puluhan menu dilakukan dengan request HTTP terpisah per baris.
+3. Form input pada HP/Tablet mengalami auto-zoom saat fokus karena ukuran font < 16px dan min-width root keras.
+4. Endpoint Hapus Semua Penjualan (`/api/owner/clear-all-outlets-sales`) tidak memverifikasi frasa konfirmasi `HAPUS SEMUA` atau PIN Owner server-side dan tidak mencatat audit log.
+5. Login memindai seluruh hash credential dengan `scryptSync` pada setiap request yang membebankan CPU dan memblok event loop Node.js.
+6. Catatan audit log ditulis di luar transaksi SQLite `mutateMasterProducts` sehingga ada risiko data terubah tetapi audit gagal.
+
+### Root cause
+
+1. API master produk tidak dipisahkan ke namespace global Owner dan UI menyertakan selector outlet.
+2. Belum ada handler bulk import transactional dengan validasi *dry-run* dan *all-or-nothing*.
+3. CSS menetapkan `font-size: 0.9375rem` (15px) pada form control dan `min-width: 320px` keras pada `html`.
+4. Endpoint destructive hanya memeriksa sesi tanpa re-auth PIN, frasa konfirmasi server-side, idempotensi `requestId`, dan audit.
+5. `hasPinCollision` dipanggil pada hot path login sebelum validasi candidate user.
+6. `database.appendAudit` dipanggil setelah `database.transaction(...)` selesai.
+
+### Solusi
+
+1. Mengubah modal Owner menjadi **Master Menu Semua Outlet** (`/api/owner/products`), menghapus dropdown outlet untuk master CRUD, dan menjelaskan scope global secara transparan.
+2. Membuat endpoint `POST /api/owner/products/bulk` (dukung *dryRun*, *upsert*, max 250 baris, max 500 total produk, idempotensi `requestId`, validasi *all-or-nothing*, dan 1 transaksi SQLite) serta `PATCH /api/owner/products/bulk` untuk perubahan massal.
+3. Mengatur `font-size: 1rem` (16px) secara global untuk semua form control di semua viewport dan memperbarui `html { width: 100%; max-width: 100%; min-width: 0; }`.
+4. Menambahkan verifikasi frasa `HAPUS SEMUA`, PIN Owner (dengan rate limiter), `requestId` idempotency, dan audit log di dalam transaksi server-side untuk endpoint clear sales.
+5. Melakukan short-circuit verifikasi candidate user pada login sebelum pengecekan collision, sehingga login gagal hanya memakai 0-1 scrypt call.
+6. Memindahkan `database.appendAudit` ke dalam transaksi SQLite `database.transaction(...)` yang sama.
+7. Menambahkan suite pengujian otomatis `test/owner-bulk-products.test.js` (7 test cases).
+
+### Bukti verifikasi aktual
+
+- `npm test`: PASS (116 tests passing)
+- `npm run build`: PASS
+- `git diff --check`: PASS
+- Waktu: 2026-07-28T11:46:00.000Z
+
+## ERR-007 - Impor menu massal menghasilkan error "Route tidak ditemukan" saat tombol simpan diklik
+
+### Kondisi/gejala
+
+Pengguna dapat melakukan preview baris menu di tabel UI, tetapi saat mengklik tombol "Impor & Simpan Semua Menu", muncul pesan error merah `Route tidak ditemukan`.
+
+### Root cause
+
+Proses server lokal Node.js di background masih menjalankan instance server lama (PID 37200 yang dinyalakan sebelum endpoint baru `/api/owner/products/bulk` ditambahkan ke `src/server.js`), sehingga permintaan HTTP POST ke endpoint baru mengembalikan respons 404 Route tidak ditemukan.
+
+### Solusi
+
+1. Menghentikan instance proses Node.js lama pada port 3000 (`Stop-Process -Id 37200`).
+2. Menjalankan kembali server Node.js versi terbaru yang sudah memuat rute `/api/owner/products/bulk`.
+3. Memastikan endpoint mengembalikan HTTP 401 (terautentikasi) alih-alih HTTP 404.
+
+### Bukti verifikasi aktual
+
+- `fetch('http://localhost:3000/api/owner/products')`: HTTP 401 OK (rute ditemukan).
+- `node --test test/owner-bulk-products.test.js`: PASS (7/7 tests pass).
+- `npm test`: PASS (116/116 tests pass).
+- Waktu: 2026-07-28T12:46:00.000Z

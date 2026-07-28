@@ -221,3 +221,133 @@
   }
 }
 
+.global-scope-badge {
+  display: inline-block;
+  margin-top: 4px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+}
+
+.modal-scope-help {
+  margin: 8px 0 14px;
+  padding: 8px 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.menu-mgmt-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.bulk-import-section {
+  margin: 14px 0;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.bulk-input-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.bulk-panel {
+  margin: 10px 0;
+}
+
+.bulk-actions-row {
+  margin-top: 12px;
+}
+
+.bulk-status-summary {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.bulk-preview-wrapper {
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: auto;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.bulk-preview-table {
+  width: 100%;
+  font-size: 0.82rem;
+  border-collapse: collapse;
+}
+
+.bulk-preview-table th,
+.bulk-preview-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.bulk-preview-table tr.row-valid {
+  background: #f4fbf7;
+}
+
+.bulk-preview-table tr.row-invalid {
+  background: #fff5f5;
+  color: var(--red);
+}
+
+.menu-list-toolbar {
+  margin: 10px 0;
+}
+
+.bulk-selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--amber-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.bulk-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.bulk-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.small-input, .small-select {
+  height: 36px !important;
+  font-size: 0.85rem !important;
+  padding-inline: 8px !important;
+}
+
