@@ -115,7 +115,7 @@ test('display keeps the 34 percent queue panel, voice opt-in, media fit, and sta
   assert.match(script, /advancePlaylist/);
   assert.match(script, /renderMedia\(item,\s*playlistIndex,\s*playlist\.length,\s*\{\s*forcePlayback\s*\}\)/);
   assert.match(script, /forcePlayback[\s\S]*promoVideo\.currentTime\s*=\s*0[\s\S]*promoVideo\.play\(\)/);
-  const announceBlock = script.match(/function announce\(activeCall\)\s*\{[\s\S]*?\n\}\n\nfunction renderMedia/)?.[0] || '';
+  const announceBlock = script.match(/function announce\(activeCall\)\s*\{[\s\S]*?\n\}\s*function renderMedia/)?.[0] || '';
   assert.doesNotMatch(announceBlock, /promoVideo\.pause/);
   assert.doesNotMatch(announceBlock, /promoVideo\.play/);
   assert.match(announceBlock, /promoVideo\.muted\s*=\s*true/);

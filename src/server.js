@@ -959,6 +959,7 @@ export async function createQueueServer({
         ['/launcher.css', 'launcher.css'],
         ['/owner.css', 'owner.css'],
         ['/partner.css', 'partner.css'],
+        ['/typography.css', 'typography.css'],
       ]);
 
       if (request.method === 'GET' && staticFiles.has(path)) {
@@ -966,7 +967,7 @@ export async function createQueueServer({
         return;
       }
 
-      const nestedAssetMatch = path.match(/^\/outlet\/[^/]+\/(admin\.css|admin\.js|api-client\.js|app-config\.js|base\.css|display\.css|display\.js|native-session\.js|native-shell\.js|queue-number\.js|receipt-model\.js|runtime-config\.js)$/);
+      const nestedAssetMatch = path.match(/^\/outlet\/[^/]+\/(admin\.css|admin\.js|api-client\.js|app-config\.js|base\.css|display\.css|display\.js|native-session\.js|native-shell\.js|queue-number\.js|receipt-model\.js|runtime-config\.js|typography\.css)$/);
       if (request.method === 'GET' && nestedAssetMatch) {
         await serveFile(response, join(publicDir, nestedAssetMatch[1]));
         return;
