@@ -169,3 +169,55 @@
   .owner-metrics, .outlet-card-metrics { grid-template-columns: 1fr; }
   .owner-revenue-card { grid-column: auto; }
 }
+
+.menu-mgmt-banner-card {
+  border-left: 4px solid var(--red);
+  padding: 18px;
+  background: var(--surface);
+}
+
+.menu-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.menu-banner-text {
+  flex: 1 1 280px;
+}
+
+.menu-banner-text .form-help {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.large-action-btn {
+  font-size: 14px;
+  padding: 10px 20px;
+  min-height: 46px;
+}
+
+.owner-security-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 14px;
+}
+
+.owner-pin-card {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .owner-security-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

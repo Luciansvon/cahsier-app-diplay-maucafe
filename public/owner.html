@@ -214,39 +214,68 @@
 
       <!-- 3. TAB PENGATURAN & MENU -->
       <section id="tab-settings" class="owner-panel">
-        <!-- Pengelolaan Utama -->
+        <!-- Pengelolaan Menu Produk (Card Utama Prominen) -->
+        <section class="owner-section menu-section-card">
+          <div class="owner-section-title">
+            <div>
+              <p class="eyebrow">DAFTAR MENU & HPP</p>
+              <h2>Kelola Menu & Harga Produk</h2>
+            </div>
+          </div>
+          <div class="card menu-mgmt-banner-card">
+            <div class="menu-banner-content">
+              <div class="menu-banner-text">
+                <p class="form-help">Tambah produk makanan/minuman baru, ubah nama menu, atur kategori, tentukan harga jual konsumen, serta kelola HPP (modal) per unit untuk seluruh kedai.</p>
+              </div>
+              <button id="open-menu-mgmt-modal" class="primary action-button large-action-btn" type="button">
+                <span>☕ Kelola Menu Kedai (Harga & HPP)</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Pengelolaan Akses & Keamanan PIN -->
         <section class="owner-section">
           <div class="owner-section-title">
             <div>
-              <p class="eyebrow">PENGELOLAAN OPERASIONAL</p>
-              <h2>Menu & Keamanan</h2>
+              <p class="eyebrow">KEAMANAN & AKSES</p>
+              <h2>Pengaturan PIN Pemilik & Kasir</h2>
             </div>
           </div>
-          <div class="owner-settings-grid">
-            <button id="open-menu-mgmt-modal" class="primary action-button">Kelola Menu Kedai (Harga & HPP)</button>
-            <button id="open-change-pin-modal" class="ghost">Ganti PIN Pemilik</button>
-          </div>
-          <div class="card admin-pin-settings-card">
-            <h3>PIN Kasir Outlet</h3>
-            <div class="outlet-selector-wrapper section-outlet-field">
-              <label for="admin-pin-outlet-select">PILIH OUTLET:</label>
-              <select id="admin-pin-outlet-select" class="outlet-dropdown section-outlet-select"></select>
-            </div>
-            <form id="admin-pin-config-form" class="form-grid-2">
-              <input name="username" type="text" value="outlet-admin" autocomplete="username" hidden aria-hidden="true">
-              <label class="modal-field">
-                <span>PIN Admin baru</span>
-                <input id="new-admin-pin" name="new-admin-password" type="password" inputmode="numeric" minlength="4" maxlength="8" autocomplete="new-password" required>
-              </label>
-              <label class="modal-field">
-                <span>Konfirmasi PIN</span>
-                <input id="confirm-admin-pin" name="new-admin-password-confirmation" type="password" inputmode="numeric" minlength="4" maxlength="8" autocomplete="new-password" required>
-              </label>
+
+          <div class="owner-security-grid">
+            <!-- Card PIN Pemilik -->
+            <div class="card owner-pin-card">
+              <h3>PIN Pemilik (Owner)</h3>
+              <p class="form-help">PIN global utama untuk login dan mengamankan akun Pemilik.</p>
               <div class="button-group">
-                <button type="submit" class="primary owner-mutating">Ganti PIN Kasir Outlet</button>
+                <button id="open-change-pin-modal" class="ghost action-button" type="button">Ganti PIN Pemilik</button>
               </div>
-            </form>
-            <div id="admin-pin-config-status" class="media-status-msg" hidden></div>
+            </div>
+
+            <!-- Card PIN Kasir Outlet -->
+            <div class="card admin-pin-settings-card">
+              <h3>PIN Kasir Outlet</h3>
+              <div class="outlet-selector-wrapper section-outlet-field">
+                <label for="admin-pin-outlet-select">PILIH OUTLET:</label>
+                <select id="admin-pin-outlet-select" class="outlet-dropdown section-outlet-select"></select>
+              </div>
+              <form id="admin-pin-config-form" class="form-grid-2">
+                <input name="username" type="text" value="outlet-admin" autocomplete="username" hidden aria-hidden="true">
+                <label class="modal-field">
+                  <span>PIN Admin baru</span>
+                  <input id="new-admin-pin" name="new-admin-password" type="password" inputmode="numeric" minlength="4" maxlength="8" autocomplete="new-password" required>
+                </label>
+                <label class="modal-field">
+                  <span>Konfirmasi PIN</span>
+                  <input id="confirm-admin-pin" name="new-admin-password-confirmation" type="password" inputmode="numeric" minlength="4" maxlength="8" autocomplete="new-password" required>
+                </label>
+                <div class="button-group">
+                  <button type="submit" class="primary owner-mutating">Ganti PIN Kasir Outlet</button>
+                </div>
+              </form>
+              <div id="admin-pin-config-status" class="media-status-msg" hidden></div>
+            </div>
           </div>
         </section>
 
