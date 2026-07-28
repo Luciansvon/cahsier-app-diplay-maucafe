@@ -1152,7 +1152,23 @@ function renderMenuMgmtList() {
     });
     photoLabel.append(photoInput);
 
-    actionsRow.append(toggleLabel, photoLabel, saveBtn);
+    const deleteBtn = element('button', 'danger-btn small-btn', 'Hapus');
+    deleteBtn.type = 'button';
+    deleteBtn.addEventListener('click', async () => {
+      if (!confirm(`Yakin ingin menghapus menu "${prod.name}" secara permanen?`)) return;
+      try {
+        await request(`/api/outlet/${selectedOutletId}/products/${prod.id}`, {
+          method: 'DELETE',
+        });
+        toast(`Menu "${prod.name}" telah dihapus.`);
+        await syncSingleOutletState();
+        renderMenuMgmtList();
+      } catch (err) {
+        toast(err.message || 'Gagal menghapus menu');
+      }
+    });
+
+    actionsRow.append(toggleLabel, photoLabel, saveBtn, deleteBtn);
     card.append(header, inputsRow, actionsRow);
     container.append(card);
   });

@@ -12,6 +12,7 @@ import {
   createInitialState,
   createOrder,
   purgeOldOrders,
+  removeProduct,
   resetQueue,
   rolloverBusinessDay,
   updateOwnerPin,
@@ -205,10 +206,11 @@ test('reset cancels active orders and preserves closed sales history', () => {
   assert.equal(state.nextQueueNumber, 1);
 });
 
-test('products can be added and updated with cost without mutating previous state', () => {
+test('products can be added, updated, and removed without mutating previous state', () => {
   const before = createInitialState();
   const added = addProduct(before, { name: 'Americano', category: 'Kopi', price: 15000, cost: 7000, cupUsage: 1 });
   const updated = updateProduct(added.state, added.product.id, { price: 17000, cost: 8000, cupUsage: 2, active: false });
+  const removed = removeProduct(updated.state, added.product.id);
 
   assert.equal(before.products.length, 0);
   assert.equal(added.product.cost, 7000);
@@ -216,6 +218,9 @@ test('products can be added and updated with cost without mutating previous stat
   assert.equal(updated.product.cost, 8000);
   assert.equal(updated.product.cupUsage, 2);
   assert.equal(updated.product.active, false);
+  assert.equal(removed.state.products.length, 0);
+  assert.equal(removed.product.id, added.product.id);
+  assert.throws(() => removeProduct(removed.state, added.product.id), /tidak ditemukan/i);
   assert.throws(() => updateProduct(updated.state, added.product.id, { cupUsage: -1 }), /cup/i);
 });
 
