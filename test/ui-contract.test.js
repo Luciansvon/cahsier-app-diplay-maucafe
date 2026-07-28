@@ -211,8 +211,8 @@ test('each page loads shared foundations plus one role stylesheet', async () => 
   ];
   for (const [page, roleStylesheet] of pages) {
     const html = await read(page);
-    assert.match(html, /href=["']\.\/base\.css["']/);
-    assert.match(html, new RegExp(`href=["']\\./${roleStylesheet.replace('.', '\\.')}["']`));
+    assert.match(html, /href=["']\.\/base\.css(\?v=\d+)?["']/);
+    assert.match(html, new RegExp(`href=["']\\./${roleStylesheet.replace('.', '\\.')}(\\?v=\\d+)?["']`));
     assert.doesNotMatch(html, /styles\.css/);
   }
 });
