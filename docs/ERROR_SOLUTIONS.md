@@ -721,3 +721,29 @@ Verifikasi:
 - `npm run build`: PASS (Aset web dist/ berhasil dibuat)
 - `git diff --check`: PASS (Tanpa whitespace warning/error)
 - Waktu: 2026-07-28T03:39:00.000Z
+
+## UI-OWNER-MENU-LAYOUT-2026-07-28 - Tombol Kelola Menu menyatu dengan Pengaturan PIN
+
+### Kondisi/gejala
+
+- Tombol Kelola Menu Kedai (Harga & HPP) diletakkan sebagai tombol kecil di sebelah Ganti PIN Pemilik.
+- Di bawah kedua tombol tersebut langsung menyatu kartu form PIN Kasir Outlet.
+- Pengguna/Pemilik kesulitan menemukan fitur Kelola Menu karena tampilannya menyatu dan tampak seperti bagian dari pengaturan PIN keamanan.
+
+### Root cause
+
+- Pengelompokan layout di tab Kelola menyatukan fungsi manajemen produk dan manajemen keamanan PIN dalam satu baris tombol.
+
+### Solusi
+
+- Memisahkan Kelola Menu Produk menjadi section/kartu utama tersendiri yang menonjol (`card menu-mgmt-banner-card`).
+- Menambahkan judul eksplisit "Kelola Menu & Harga Produk" dan deskripsi panduan yang jelas.
+- Memindahkan tombol "Kelola Menu Kedai (Harga & HPP)" menjadi tombol aksi utama (Primary CTA) di kartu menu tersebut.
+- Memisahkan Pengaturan PIN Pemilik & Kasir ke dalam section "KEAMANAN & AKSES" tersendiri di bawahnya.
+
+### Bukti verifikasi aktual
+
+- `npm test`: PASS (108 tests passing)
+- `npm run build`: PASS
+- `git diff --check`: PASS
+- Waktu: 2026-07-28T04:08:00.000Z
