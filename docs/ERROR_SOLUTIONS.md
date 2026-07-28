@@ -684,3 +684,40 @@ Verifikasi:
 - Perintah terakhir: Perintah gagal (1): npm test
 - Waktu verifikasi: 2026-07-28T02:46:22.823Z
 - Perbaiki error, lalu jalankan ulang `npm test` dan `npm run build`.
+
+## UI-TYPOGRAPHY-V2-2026-07-28 - Sistem tipografi masih tidak konsisten setelah patch pertama
+
+### Kondisi/gejala
+
+- Font dan hierarchy judul masih campur tanpa aturan yang jelas.
+- Tab menggunakan uppercase dan tracking lebar sehingga label terasa sempit.
+- Beberapa kartu Partner tidak memiliki padding khusus karena hanya memakai class `card`.
+- Patch pertama ditumpuk di akhir enam stylesheet sehingga cascade sulit diprediksi.
+- HTML masih memakai cache key CSS `?v=3`, sehingga browser atau Android WebView dapat menampilkan CSS lama.
+
+### Root cause
+
+- Tidak ada satu layer tipografi yang menjadi source of truth.
+- Fix pertama berupa override tersebar, bukan sistem skala font dan spacing yang konsisten.
+- Role stylesheet memiliki specificity dan breakpoint yang berbeda-beda.
+- Cache buster tidak dinaikkan setelah stylesheet berubah.
+
+### Solusi
+
+- Menghapus blok `typography-spacing-fix` lama.
+- Menambahkan `public/typography.css` sebagai layer terakhir di semua halaman.
+- Menetapkan font, skala ukuran, line-height, gutter, padding kartu, dan tinggi kontrol secara terpusat.
+- Menghapus uppercase paksa pada tab dan section heading.
+- Memberi padding eksplisit pada toolbar dan kartu Partner.
+- Menata tab dan form pada viewport sempit.
+- Menjaga display TV tetap 34% antrean dan 66% promo.
+- Menaikkan cache key role CSS ke `?v=4` dan memakai `typography.css?v=2`.
+- Menambahkan regression test `test/typography-v2.test.js`.
+
+### Bukti verifikasi aktual
+
+- `node --check test/typography-v2.test.js`: PASS
+- `npm test`: PASS (108 tests passing)
+- `npm run build`: PASS (Aset web dist/ berhasil dibuat)
+- `git diff --check`: PASS (Tanpa whitespace warning/error)
+- Waktu: 2026-07-28T03:39:00.000Z

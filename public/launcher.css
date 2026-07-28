@@ -10,26 +10,3 @@
 #server-form, #launcher-actions { display: grid; gap: 11px; margin-top: 20px; }
 .launcher-owner-link { width: 100%; }
 #launcher-status { margin: 18px auto 0; }
-
-/* typography-spacing-fix: launcher */
-.launcher-shell {
-  padding:
-    max(24px, var(--safe-top))
-    max(var(--page-gutter), var(--safe-right))
-    max(24px, var(--safe-bottom))
-    max(var(--page-gutter), var(--safe-left));
-}
-
-.launcher-card {
-  padding-inline: clamp(4px, 2vw, 16px);
-}
-
-.launcher-card h1 {
-  line-height: 1.12;
-  overflow-wrap: anywhere;
-}
-
-#launcher-status {
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
