@@ -14,6 +14,7 @@ import {
   createInitialState,
   createOrder,
   purgeOldOrders,
+  removeProduct,
   resetPromoMedia,
   resetQueue,
   rolloverBusinessDay,
@@ -2260,6 +2261,31 @@ export async function createQueueServer({
           'product.update',
         );
         sendJson(response, 200, { state: ownerState(nextState), product });
+        return;
+      }
+
+      if (request.method === 'DELETE' && productRoute) {
+        if (!ownerSession(request)) {
+          sendJson(response, 401, { error: 'Sesi Owner diperlukan.' });
+          return;
+        }
+        const targetId = productRoute[1];
+        const previousProduct = registry.masterProducts.find(
+          (candidate) => candidate.id === targetId,
+        );
+        if (!previousProduct) {
+          sendJson(response, 404, { error: 'Produk tidak ditemukan' });
+          return;
+        }
+        const { state: nextState, product } = await mutateMasterProducts(
+          outletId,
+          (current) => removeProduct(current, targetId),
+          'product.delete',
+        );
+        if (previousProduct.imageUrl) {
+          await removeManagedProductImage(publicDir, previousProduct.imageUrl).catch(() => {});
+        }
+        sendJson(response, 200, { ok: true, state: ownerState(nextState), product });
         return;
       }
 

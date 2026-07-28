@@ -267,6 +267,14 @@ export function setProductImage(currentState, productId, imageUrl) {
   return { state: changed(state), product };
 }
 
+export function removeProduct(currentState, productId) {
+  const state = clone(currentState);
+  const index = state.products.findIndex((candidate) => candidate.id === productId);
+  if (index === -1) throw new Error('Produk tidak ditemukan');
+  const [removed] = state.products.splice(index, 1);
+  return { state: changed(state), product: removed };
+}
+
 function createOwnerPinHash(pin) {
   return createPinHash(pin);
 }

@@ -1274,3 +1274,27 @@ test('Partner can view sanitized products and toggle menu active status per outl
   assert.equal(unauthRes.response.status, 403);
 });
 
+test('Owner can delete a master product via DELETE API', async (t) => {
+  const { baseUrl, defaultOutletId } = await fixture(t, {
+    registryPatch: {
+      masterProducts: [{ id: 'latte', name: 'Latte', category: 'Kopi', price: 20000, cost: 8000, active: true }],
+    },
+  });
+  const ownerCookie = await loginOwner(baseUrl);
+
+  // Non-owner gets 401
+  const unauthRes = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/products/latte`, 'DELETE');
+  assert.equal(unauthRes.response.status, 401);
+
+  // Owner deletes master product
+  const deleteRes = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/products/latte`, 'DELETE', undefined, ownerCookie);
+  assert.equal(deleteRes.response.status, 200);
+  assert.equal(deleteRes.payload.ok, true);
+  assert.equal(deleteRes.payload.product.id, 'latte');
+
+  // Verify product is gone from master product list
+  const listRes = await jsonRequest(`${baseUrl}/api/outlet/${defaultOutletId}/owner/state`, 'GET', undefined, ownerCookie);
+  assert.equal(listRes.response.status, 200);
+  assert.equal(listRes.payload.state.products.some((p) => p.id === 'latte'), false);
+});
+
