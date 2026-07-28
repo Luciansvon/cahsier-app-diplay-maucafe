@@ -133,7 +133,7 @@ textarea {
   min-width: 0;
   min-height: var(--control-height);
   padding-inline: 0.9rem;
-  font-size: var(--text-md);
+  font-size: 1rem;
   line-height: 1.35;
 }
 

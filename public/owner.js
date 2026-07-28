@@ -993,42 +993,241 @@ $('#change-pin-form')?.addEventListener('submit', async (e) => {
   }
 });
 
+let masterProductsList = [];
+let selectedProductIds = new Set();
+let currentBulkRows = [];
+let currentBulkRequestId = null;
+
 const menuMgmtModal = $('#menu-mgmt-modal');
 
-function populateMenuModalOutletDropdown() {
-  const dropdown = $('#menu-modal-outlet-select');
-  if (!dropdown) return;
-  dropdown.replaceChildren();
-
-  outletsList.forEach((s) => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.textContent = s.name;
-    dropdown.append(opt);
-  });
-
-  const currentVal = selectedOutletId === 'all' ? (outletsList[0]?.id || 'maucafe-alunalun') : selectedOutletId;
-  dropdown.value = currentVal;
+async function fetchMasterProducts() {
+  try {
+    const payload = await request('/api/owner/products');
+    if (payload && Array.isArray(payload.products)) {
+      masterProductsList = payload.products;
+    } else {
+      masterProductsList = state.products || [];
+    }
+  } catch {
+    masterProductsList = state.products || [];
+  }
+  updateCategoryFilterOptions();
+  renderMenuMgmtList();
 }
 
-$('#menu-modal-outlet-select')?.addEventListener('change', async (e) => {
-  await selectOutlet(e.target.value);
-  renderMenuMgmtList();
-});
+function updateCategoryFilterOptions() {
+  const filterSelect = $('#menu-category-filter');
+  if (!filterSelect) return;
+  const categories = new Set(masterProductsList.map((p) => p.category).filter(Boolean));
+  const currentVal = filterSelect.value || 'all';
+  filterSelect.replaceChildren();
+  const allOpt = document.createElement('option');
+  allOpt.value = 'all';
+  allOpt.textContent = 'Semua Kategori';
+  filterSelect.append(allOpt);
+  categories.forEach((cat) => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    filterSelect.append(opt);
+  });
+  filterSelect.value = categories.has(currentVal) ? currentVal : 'all';
+}
 
-function openMenuMgmt() {
-  populateMenuModalOutletDropdown();
-  if (selectedOutletId === 'all') {
-    selectOutlet(outletsList[0]?.id || 'maucafe-alunalun');
-  } else {
-    renderMenuMgmtList();
-  }
+async function openMenuMgmt() {
+  await fetchMasterProducts();
   if (menuMgmtModal) menuMgmtModal.showModal();
 }
+
 function closeMenuMgmt() {
   if (menuMgmtModal?.open) menuMgmtModal.close();
   const err = $('#add-product-error');
   if (err) err.hidden = true;
+  const bulkErr = $('#bulk-error-alert');
+  if (bulkErr) bulkErr.hidden = true;
+}
+
+function parseCsvOrTsv(text) {
+  if (!text) return [];
+  let content = text.replace(/^\uFEFF/, '').trim();
+  if (!content) return [];
+  const isTsv = content.includes('\t') && !content.includes(',');
+  const delimiter = isTsv ? '\t' : ',';
+
+  const lines = [];
+  let currentLine = [];
+  let currentCell = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    const nextChar = content[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        currentCell += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      currentLine.push(currentCell.trim());
+      currentCell = '';
+    } else if ((char === '\r' || char === '\n') && !inQuotes) {
+      if (char === '\r' && nextChar === '\n') i++;
+      currentLine.push(currentCell.trim());
+      if (currentLine.some(c => c !== '')) lines.push(currentLine);
+      currentLine = [];
+      currentCell = '';
+    } else {
+      currentCell += char;
+    }
+  }
+  if (currentCell || currentLine.length) {
+    currentLine.push(currentCell.trim());
+    if (currentLine.some(c => c !== '')) lines.push(currentLine);
+  }
+
+  if (lines.length < 2) return [];
+
+  const header = lines[0].map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const idIdx = header.findIndex(h => h === 'id');
+  const nameIdx = header.findIndex(h => h === 'name' || h === 'nama' || h === 'namaproduk' || h.includes('nama') || h.includes('name'));
+  const catIdx = header.findIndex(h => h === 'category' || h === 'kategori' || h.includes('kategori') || h.includes('cat'));
+  const priceIdx = header.findIndex(h => h === 'price' || h === 'harga' || h === 'hargajual' || h.includes('harga') || h.includes('price'));
+  const costIdx = header.findIndex(h => h === 'cost' || h === 'hpp' || h === 'modal' || h === 'hargamodal' || h.includes('hpp') || h.includes('modal') || h.includes('cost'));
+  const cupIdx = header.findIndex(h => h === 'cupusage' || h === 'cup' || h === 'pemakaiancup' || h.includes('cup'));
+  const activeIdx = header.findIndex(h => h === 'active' || h === 'aktif' || h === 'status' || h.includes('aktif') || h.includes('status'));
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i];
+    if (!row || row.length === 0) continue;
+    const rawId = idIdx !== -1 ? row[idIdx] : null;
+    const name = nameIdx !== -1 ? row[nameIdx] : (row[0] || '');
+    const category = catIdx !== -1 ? row[catIdx] : (row[1] || 'Kopi');
+    const priceStr = priceIdx !== -1 ? row[priceIdx] : (row[2] || '0');
+    const costStr = costIdx !== -1 ? row[costIdx] : (row[3] || '0');
+    const cupStr = cupIdx !== -1 ? row[cupIdx] : (row[4] || '1');
+    const activeStr = activeIdx !== -1 ? row[activeIdx] : (row[5] || 'true');
+
+    const price = parseInt(String(priceStr).replace(/[^0-9-]/g, ''), 10);
+    const cost = parseInt(String(costStr).replace(/[^0-9-]/g, ''), 10);
+    const cupUsage = parseInt(String(cupStr).replace(/[^0-9-]/g, ''), 10);
+    const active = activeStr === '' || activeStr.toLowerCase() === 'true' || activeStr === '1' || activeStr.toLowerCase() === 'ya';
+
+    rows.push({
+      id: rawId || null,
+      name,
+      category,
+      price: Number.isNaN(price) ? 0 : price,
+      cost: Number.isNaN(cost) ? 0 : cost,
+      cupUsage: Number.isNaN(cupUsage) ? 1 : cupUsage,
+      active,
+    });
+  }
+  return rows;
+}
+
+function generateTemplateCsv() {
+  const headers = ['id', 'name', 'category', 'price', 'cost', 'cupUsage', 'active'];
+  const rows = [headers.join(',')];
+  const prods = masterProductsList.length ? masterProductsList : state.products || [];
+  if (prods.length) {
+    for (const p of prods) {
+      rows.push([
+        p.id || '',
+        `"${(p.name || '').replace(/"/g, '""')}"`,
+        `"${(p.category || '').replace(/"/g, '""')}"`,
+        p.price ?? 0,
+        p.cost ?? 0,
+        p.cupUsage ?? 1,
+        p.active !== false ? 'true' : 'false',
+      ].join(','));
+    }
+  } else {
+    rows.push(',Es Kopi Susu,Kopi,15000,7000,1,true');
+    rows.push(',Kopi Tubruk,Kopi,10000,4000,0,true');
+  }
+  return rows.join('\r\n');
+}
+
+function renderBulkPreview(parsedRows, serverResponse = null) {
+  const wrapper = $('#bulk-preview-wrapper');
+  const tbody = $('#bulk-preview-tbody');
+  const summaryDiv = $('#bulk-status-summary');
+  const errorAlert = $('#bulk-error-alert');
+  const commitBtn = $('#bulk-commit-btn');
+
+  if (!wrapper || !tbody || !summaryDiv || !errorAlert || !commitBtn) return;
+
+  tbody.replaceChildren();
+  errorAlert.hidden = true;
+  summaryDiv.hidden = true;
+
+  if (!parsedRows.length) {
+    errorAlert.textContent = 'Tidak ada baris data yang valid ditemukan.';
+    errorAlert.hidden = false;
+    commitBtn.disabled = true;
+    wrapper.hidden = true;
+    return;
+  }
+
+  const rowErrorsMap = new Map();
+  if (serverResponse && Array.isArray(serverResponse.rowErrors)) {
+    for (const err of serverResponse.rowErrors) {
+      if (err.row > 0) {
+        if (!rowErrorsMap.has(err.row)) rowErrorsMap.set(err.row, []);
+        rowErrorsMap.get(err.row).push(`${err.field}: ${err.message}`);
+      }
+    }
+  }
+
+  let hasError = false;
+  parsedRows.forEach((row, idx) => {
+    const rowNum = idx + 1;
+    const errors = rowErrorsMap.get(rowNum) || [];
+    const isInvalid = errors.length > 0;
+    if (isInvalid) hasError = true;
+
+    const tr = document.createElement('tr');
+    tr.className = isInvalid ? 'row-invalid' : 'row-valid';
+
+    tr.append(
+      element('td', '', String(rowNum)),
+      element('td', '', isInvalid ? '❌ Invalid' : '✅ Valid'),
+      element('td', '', row.id || '-'),
+      element('td', '', row.name || '-'),
+      element('td', '', row.category || '-'),
+      element('td', '', `Rp ${row.price.toLocaleString('id-ID')}`),
+      element('td', '', `Rp ${row.cost.toLocaleString('id-ID')}`),
+      element('td', '', String(row.cupUsage)),
+      element('td', '', row.active ? 'Ya' : 'Tidak'),
+      element('td', '', errors.join('; ') || '-')
+    );
+    tbody.append(tr);
+  });
+
+  wrapper.hidden = false;
+
+  if (serverResponse && !serverResponse.ok) {
+    errorAlert.textContent = serverResponse.error || 'Gagal memvalidasi data import.';
+    errorAlert.hidden = false;
+    commitBtn.disabled = true;
+  } else if (hasError) {
+    errorAlert.textContent = 'Beberapa baris data mengandung kesalahan. Harap perbaiki sebelum mengimpor.';
+    errorAlert.hidden = false;
+    commitBtn.disabled = true;
+  } else if (serverResponse && serverResponse.summary) {
+    const s = serverResponse.summary;
+    summaryDiv.textContent = `Intip Preview Sukses: ${s.created} baru, ${s.updated} diperbarui, ${s.unchanged} tidak berubah (Berlaku ke ${s.affectedOutlets} outlet).`;
+    summaryDiv.hidden = false;
+    commitBtn.disabled = false;
+  } else {
+    summaryDiv.textContent = `${parsedRows.length} baris siap diuji server. Klik "Intip Preview / Dry-Run" untuk memverifikasi.`;
+    summaryDiv.hidden = false;
+    commitBtn.disabled = true;
+  }
 }
 
 function renderMenuMgmtList() {
@@ -1036,15 +1235,35 @@ function renderMenuMgmtList() {
   if (!container) return;
   container.replaceChildren();
 
-  if (!state.products || !state.products.length) {
-    container.append(element('p', 'empty-state', 'Belum ada menu terdaftar.'));
+  const searchQuery = ($('#menu-search-input')?.value || '').trim().toLowerCase();
+  const categoryFilter = $('#menu-category-filter')?.value || 'all';
+
+  const prods = masterProductsList.length ? masterProductsList : state.products || [];
+  const filtered = prods.filter((prod) => {
+    const matchSearch = !searchQuery || prod.name.toLowerCase().includes(searchQuery);
+    const matchCategory = categoryFilter === 'all' || prod.category === categoryFilter;
+    return matchSearch && matchCategory;
+  });
+
+  if (!filtered.length) {
+    container.append(element('p', 'empty-state', searchQuery || categoryFilter !== 'all' ? 'Tidak ada menu yang sesuai filter.' : 'Belum ada menu terdaftar.'));
     return;
   }
 
-  state.products.forEach((prod) => {
+  filtered.forEach((prod) => {
     const card = element('div', 'menu-item-edit-card');
 
     const header = element('div', 'menu-item-header');
+
+    const selectCb = element('input');
+    selectCb.type = 'checkbox';
+    selectCb.checked = selectedProductIds.has(prod.id);
+    selectCb.addEventListener('change', () => {
+      if (selectCb.checked) selectedProductIds.add(prod.id);
+      else selectedProductIds.delete(prod.id);
+      updateBulkToolbarUI();
+    });
+
     const thumbnail = element('span', 'menu-item-thumbnail');
     if (prod.imageUrl) {
       const image = element('img');
@@ -1055,7 +1274,9 @@ function renderMenuMgmtList() {
     } else {
       thumbnail.append(element('span', '', prod.name.slice(0, 1).toUpperCase()));
     }
+
     header.append(
+      selectCb,
       thumbnail,
       element('strong', 'menu-item-name', prod.name),
       element('span', 'menu-item-category-badge', prod.category)
@@ -1109,11 +1330,13 @@ function renderMenuMgmtList() {
         const newCost = Number(costInput.value);
         const cupUsage = Number(cupInput.value);
         const isActive = toggleCheckbox.checked;
-        await request(`/api/outlet/${selectedOutletId}/products/${prod.id}`, {
+        const targetOutlet = selectedOutletId === 'all' ? (outletsList[0]?.id || 'maucafe-alunalun') : selectedOutletId;
+        await request(`/api/outlet/${targetOutlet}/products/${prod.id}`, {
           method: 'PATCH',
           body: JSON.stringify({ price: newPrice, cost: newCost, cupUsage, active: isActive }),
         });
         toast(`Menu ${prod.name} diperbarui!`);
+        await fetchMasterProducts();
         await syncSingleOutletState();
       } catch (err) {
         toast(err.message || 'Gagal memperbarui menu');
@@ -1136,13 +1359,14 @@ function renderMenuMgmtList() {
       const reader = new FileReader();
       reader.onload = async () => {
         try {
-          await request(`/api/outlet/${selectedOutletId}/products/${prod.id}/image`, {
+          const targetOutlet = selectedOutletId === 'all' ? (outletsList[0]?.id || 'maucafe-alunalun') : selectedOutletId;
+          await request(`/api/outlet/${targetOutlet}/products/${prod.id}/image`, {
             method: 'POST',
             body: JSON.stringify({ filename: file.name, dataUrl: reader.result }),
           });
           toast(`Foto ${prod.name} diperbarui`);
+          await fetchMasterProducts();
           await syncSingleOutletState();
-          renderMenuMgmtList();
         } catch (err) {
           toast(err.message || 'Gagal mengunggah foto');
         }
@@ -1155,14 +1379,15 @@ function renderMenuMgmtList() {
     const deleteBtn = element('button', 'danger-btn small-btn', 'Hapus');
     deleteBtn.type = 'button';
     deleteBtn.addEventListener('click', async () => {
-      if (!confirm(`Yakin ingin menghapus menu "${prod.name}" secara permanen?`)) return;
+      if (!confirm(`Yakin ingin menghapus menu "${prod.name}" secara permanen dari semua outlet?`)) return;
       try {
-        await request(`/api/outlet/${selectedOutletId}/products/${prod.id}`, {
+        const targetOutlet = selectedOutletId === 'all' ? (outletsList[0]?.id || 'maucafe-alunalun') : selectedOutletId;
+        await request(`/api/outlet/${targetOutlet}/products/${prod.id}`, {
           method: 'DELETE',
         });
         toast(`Menu "${prod.name}" telah dihapus.`);
+        await fetchMasterProducts();
         await syncSingleOutletState();
-        renderMenuMgmtList();
       } catch (err) {
         toast(err.message || 'Gagal menghapus menu');
       }
@@ -1172,7 +1397,156 @@ function renderMenuMgmtList() {
     card.append(header, inputsRow, actionsRow);
     container.append(card);
   });
+  updateBulkToolbarUI();
 }
+
+function updateBulkToolbarUI() {
+  const toolbar = $('#bulk-toolbar');
+  const countSpan = $('#bulk-selected-count');
+  if (!toolbar || !countSpan) return;
+
+  const count = selectedProductIds.size;
+  if (count > 0) {
+    toolbar.hidden = false;
+    countSpan.textContent = `${count} terpilih`;
+  } else {
+    toolbar.hidden = true;
+  }
+}
+
+// Bulk & Search Event Handlers Setup
+$('#menu-search-input')?.addEventListener('input', renderMenuMgmtList);
+$('#menu-category-filter')?.addEventListener('change', renderMenuMgmtList);
+
+$('#bulk-select-all-cb')?.addEventListener('change', (e) => {
+  if (e.target.checked) {
+    masterProductsList.forEach((p) => selectedProductIds.add(p.id));
+  } else {
+    selectedProductIds.clear();
+  }
+  renderMenuMgmtList();
+});
+
+async function applyBulkPatch(changes) {
+  if (selectedProductIds.size === 0) return;
+  const productIds = Array.from(selectedProductIds);
+  const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  try {
+    await request('/api/owner/products/bulk', {
+      method: 'PATCH',
+      body: JSON.stringify({ requestId, productIds, changes }),
+    });
+    toast(`Berhasil memperbarui ${productIds.length} produk.`);
+    selectedProductIds.clear();
+    await fetchMasterProducts();
+    await syncSingleOutletState();
+  } catch (err) {
+    toast(err.message || 'Gagal melakukan pembaruan massal');
+  }
+}
+
+$('#bulk-enable-selected')?.addEventListener('click', () => applyBulkPatch({ active: true }));
+$('#bulk-disable-selected')?.addEventListener('click', () => applyBulkPatch({ active: false }));
+$('#bulk-change-category-select')?.addEventListener('change', (e) => {
+  const val = e.target.value;
+  if (!val) return;
+  applyBulkPatch({ category: val });
+  e.target.value = '';
+});
+
+$('#toggle-single-add-btn')?.addEventListener('click', () => {
+  const details = $('#add-product-details');
+  if (details) details.open = !details.open;
+});
+
+$('#toggle-bulk-import-btn')?.addEventListener('click', () => {
+  const section = $('#bulk-import-section');
+  if (section) section.hidden = !section.hidden;
+});
+
+$('#download-template-btn')?.addEventListener('click', () => {
+  const csvContent = generateTemplateCsv();
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'template_master_menu.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+$('#bulk-tab-file-btn')?.addEventListener('click', () => {
+  $('#bulk-tab-file-btn').classList.add('active');
+  $('#bulk-tab-paste-btn').classList.remove('active');
+  $('#bulk-file-panel').hidden = false;
+  $('#bulk-paste-panel').hidden = true;
+});
+
+$('#bulk-tab-paste-btn')?.addEventListener('click', () => {
+  $('#bulk-tab-paste-btn').classList.add('active');
+  $('#bulk-tab-file-btn').classList.remove('active');
+  $('#bulk-paste-panel').hidden = false;
+  $('#bulk-file-panel').hidden = true;
+});
+
+async function getBulkInputRows() {
+  const isPaste = !$('#bulk-paste-panel').hidden;
+  if (isPaste) {
+    const text = $('#bulk-paste-text').value;
+    return parseCsvOrTsv(text);
+  }
+  const fileInput = $('#bulk-file-input');
+  const file = fileInput?.files?.[0];
+  if (!file) return [];
+  const text = await file.text();
+  return parseCsvOrTsv(text);
+}
+
+$('#bulk-preview-btn')?.addEventListener('click', async () => {
+  try {
+    currentBulkRows = await getBulkInputRows();
+    if (!currentBulkRows.length) {
+      renderBulkPreview([], { ok: false, error: 'Tidak ada baris data yang valid ditemui' });
+      return;
+    }
+    currentBulkRequestId = 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+    const res = await request('/api/owner/products/bulk', {
+      method: 'POST',
+      body: JSON.stringify({
+        requestId: currentBulkRequestId,
+        dryRun: true,
+        rows: currentBulkRows,
+      }),
+    });
+    renderBulkPreview(currentBulkRows, res);
+  } catch (err) {
+    renderBulkPreview(currentBulkRows, { ok: false, error: err.message, rowErrors: err.rowErrors });
+  }
+});
+
+$('#bulk-commit-btn')?.addEventListener('click', async () => {
+  if (!currentBulkRows.length || !currentBulkRequestId) return;
+  try {
+    const res = await request('/api/owner/products/bulk', {
+      method: 'POST',
+      body: JSON.stringify({
+        requestId: currentBulkRequestId,
+        dryRun: false,
+        rows: currentBulkRows,
+      }),
+    });
+    toast(`Import Berhasil! ${res.summary.created} baru, ${res.summary.updated} diperbarui.`);
+    $('#bulk-import-section').hidden = true;
+    $('#bulk-file-input').value = '';
+    $('#bulk-paste-text').value = '';
+    currentBulkRows = [];
+    currentBulkRequestId = null;
+    await fetchMasterProducts();
+    await syncSingleOutletState();
+  } catch (err) {
+    toast(err.message || 'Gagal menyimpan import');
+  }
+});
 
 $('#open-menu-mgmt-modal')?.addEventListener('click', openMenuMgmt);
 $('#close-menu-mgmt-modal')?.addEventListener('click', closeMenuMgmt);
@@ -1192,7 +1566,8 @@ if (addProductForm) {
       const price = Number($('#new-product-price').value);
       const cost = Number($('#new-product-cost').value);
       const cupUsage = Number($('#new-product-cup-usage').value);
-      await request(`/api/outlet/${selectedOutletId}/products`, {
+      const targetOutlet = selectedOutletId === 'all' ? (outletsList[0]?.id || 'maucafe-alunalun') : selectedOutletId;
+      await request(`/api/outlet/${targetOutlet}/products`, {
         method: 'POST',
         body: JSON.stringify({ name, category, price, cost, cupUsage }),
       });
@@ -1200,8 +1575,8 @@ if (addProductForm) {
       $('#new-product-price').value = '';
       $('#new-product-cost').value = '';
       toast('Menu baru berhasil ditambahkan!');
+      await fetchMasterProducts();
       await syncSingleOutletState();
-      renderMenuMgmtList();
     } catch (err) {
       if (errDiv) {
         errDiv.textContent = err.message || 'Gagal menambah menu';

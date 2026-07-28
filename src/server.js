@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   addProduct,
+  bulkUpsertMasterProducts,
   callOrder,
   cancelOrder,
   clearAllOrders,
@@ -22,6 +23,7 @@ import {
   updateOwnerPin,
   updateProduct,
   updatePromoMedia,
+  validateBulkProductRows,
   verifyOwnerPin,
 } from './queue.js';
 import {
@@ -493,6 +495,17 @@ export async function createQueueServer({
   const ownerLoginLimiter = new LoginLimiter();
   const partnerLoginLimiter = new LoginLimiter();
   const mediaUploadHistory = new Map();
+  const processedRequests = new Map();
+
+  function recordProcessedRequest(requestId, data) {
+    if (!requestId) return;
+    if (processedRequests.size >= 500) {
+      const firstKey = processedRequests.keys().next().value;
+      processedRequests.delete(firstKey);
+    }
+    processedRequests.set(requestId, data);
+  }
+
   let mutationQueue = Promise.resolve();
 
   function withMutationLock(task) {
@@ -852,6 +865,21 @@ export async function createQueueServer({
         for (const [targetOutletId, nextState] of nextStates) {
           database.writeState(`outlet:${targetOutletId}`, nextState);
         }
+        if (action) {
+          const actionName = typeof action === 'object' ? action.action : action;
+          const metadata = typeof action === 'object' ? action.metadata : { productId: result.product?.id };
+          database.appendAudit({
+            actorType: 'owner',
+            actorId: 'owner',
+            action: actionName,
+            outletId: outletId || null,
+            metadata: {
+              scope: 'global-master',
+              affectedOutlets: nextStates.size,
+              ...metadata,
+            },
+          });
+        }
       });
       registry = nextRegistry;
       outletsConfig = registry.outlets;
@@ -860,17 +888,7 @@ export async function createQueueServer({
         const state = target.store.refreshFromDatabase();
         broadcast(targetOutletId, state);
       }
-      database.appendAudit({
-        actorType: 'owner',
-        actorId: 'owner',
-        action,
-        outletId,
-        metadata: { productId: result.product.id },
-      });
-      return {
-        state: stores.get(outletId).store.get(),
-        product: structuredClone(result.product),
-      };
+      return result;
     });
   }
 
@@ -1022,14 +1040,12 @@ export async function createQueueServer({
           });
           return;
         }
-        const user = hasPinCollision(body.pin)
-          ? null
-          : authenticateUser(registry, {
-              username: body.username,
-              pin: body.pin,
-              role: 'partner',
-            });
-        if (!user) {
+        const user = authenticateUser(registry, {
+          username: body.username,
+          pin: body.pin,
+          role: 'partner',
+        });
+        if (!user || hasPinCollision(body.pin)) {
           partnerLoginLimiter.fail(loginKey);
           sendJson(response, 401, { error: 'Username atau PIN Mitra tidak valid' });
           return;
@@ -1352,6 +1368,180 @@ export async function createQueueServer({
         return;
       }
 
+      if (request.method === 'GET' && path === '/api/owner/products') {
+        if (!ownerSession(request)) {
+          sendJson(response, 401, { error: 'Sesi Owner diperlukan.' });
+          return;
+        }
+        sendJson(response, 200, {
+          products: registry.masterProducts || [],
+          limits: {
+            maxProducts: 500,
+            maxBulkRows: 250,
+            maxPayloadBytes: 1048576,
+          },
+          revision: registry.revision ?? 0,
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && path === '/api/owner/products/bulk') {
+        if (!ownerSession(request)) {
+          sendJson(response, 401, { error: 'Sesi Owner diperlukan.' });
+          return;
+        }
+        const body = await readJson(request);
+        const requestId = String(body?.requestId ?? '').trim();
+        if (!requestId || requestId.length < 16 || requestId.length > 100 || !/^[a-zA-Z0-9_-]+$/.test(requestId)) {
+          sendJson(response, 400, { error: 'requestId wajib 16-100 karakter aman' });
+          return;
+        }
+
+        if (processedRequests.has(requestId)) {
+          sendJson(response, 200, processedRequests.get(requestId));
+          return;
+        }
+
+        const validation = validateBulkProductRows(registry.masterProducts, body?.rows, { maxProducts: 500, maxRows: 250 });
+        if (!validation.ok) {
+          sendJson(response, 400, { error: validation.error, rowErrors: validation.rowErrors });
+          return;
+        }
+
+        if (body?.dryRun === true) {
+          let createdCount = 0;
+          let updatedCount = 0;
+          let unchangedCount = 0;
+          const existingMap = new Map((registry.masterProducts || []).map((p) => [p.id, p]));
+          for (const row of validation.validatedRows) {
+            if (row.id) {
+              const currentProd = existingMap.get(row.id);
+              if (currentProd) {
+                const isSame = currentProd.name === row.name &&
+                  currentProd.category === row.category &&
+                  currentProd.price === row.price &&
+                  currentProd.cost === row.cost &&
+                  currentProd.cupUsage === row.cupUsage &&
+                  currentProd.active === row.active;
+                if (isSame) unchangedCount++;
+                else updatedCount++;
+              }
+            } else {
+              createdCount++;
+            }
+          }
+          sendJson(response, 200, {
+            ok: true,
+            dryRun: true,
+            requestId,
+            summary: {
+              created: createdCount,
+              updated: updatedCount,
+              unchanged: unchangedCount,
+              affectedOutlets: stores.size,
+            },
+            revision: registry.revision ?? 0,
+          });
+          return;
+        }
+
+        let bulkSummary = null;
+        await mutateMasterProducts(
+          null,
+          (current) => {
+            const res = bulkUpsertMasterProducts(current, validation.validatedRows);
+            bulkSummary = res.summary;
+            return res;
+          },
+          {
+            action: 'product.bulk_import',
+            metadata: {
+              requestId,
+              rowCount: validation.validatedRows.length,
+            },
+          },
+        );
+
+        const resultResponse = {
+          ok: true,
+          dryRun: false,
+          requestId,
+          summary: {
+            ...bulkSummary,
+            affectedOutlets: stores.size,
+          },
+          products: registry.masterProducts || [],
+          revision: registry.revision ?? 0,
+        };
+
+        recordProcessedRequest(requestId, resultResponse);
+        sendJson(response, 200, resultResponse);
+        return;
+      }
+
+      if (request.method === 'PATCH' && path === '/api/owner/products/bulk') {
+        if (!ownerSession(request)) {
+          sendJson(response, 401, { error: 'Sesi Owner diperlukan.' });
+          return;
+        }
+        const body = await readJson(request);
+        const requestId = String(body?.requestId ?? '').trim();
+        if (!requestId || requestId.length < 16 || requestId.length > 100 || !/^[a-zA-Z0-9_-]+$/.test(requestId)) {
+          sendJson(response, 400, { error: 'requestId wajib 16-100 karakter aman' });
+          return;
+        }
+        if (processedRequests.has(requestId)) {
+          sendJson(response, 200, processedRequests.get(requestId));
+          return;
+        }
+        const productIds = Array.isArray(body?.productIds) ? body.productIds : [];
+        if (!productIds.length) {
+          sendJson(response, 400, { error: 'Pilih minimal satu produk' });
+          return;
+        }
+        const changes = body?.changes || {};
+        const allowedKeys = new Set(['category', 'active']);
+        const hasInvalidKey = Object.keys(changes).some((k) => !allowedKeys.has(k));
+        if (hasInvalidKey) {
+          sendJson(response, 400, { error: 'Perubahan massal hanya mengizinkan kategori atau status aktif' });
+          return;
+        }
+
+        let updatedCount = 0;
+        await mutateMasterProducts(
+          null,
+          (current) => {
+            const state = structuredClone(current);
+            updatedCount = 0;
+            for (const id of productIds) {
+              const prod = state.products.find((p) => p.id === id);
+              if (prod) {
+                if ('category' in changes) prod.category = String(changes.category).trim();
+                if ('active' in changes) prod.active = Boolean(changes.active);
+                updatedCount++;
+              }
+            }
+            state.revision = (state.revision ?? 0) + 1;
+            return { state, updatedCount };
+          },
+          {
+            action: 'product.bulk_patch',
+            metadata: { requestId, productIdsCount: productIds.length, changes },
+          },
+        );
+
+        const resultResponse = {
+          ok: true,
+          requestId,
+          updatedCount,
+          products: registry.masterProducts || [],
+          revision: registry.revision ?? 0,
+        };
+        recordProcessedRequest(requestId, resultResponse);
+        sendJson(response, 200, resultResponse);
+        return;
+      }
+
       if (request.method === 'POST' && path === '/api/owner/partners') {
         if (!ownerSession(request)) {
           sendJson(response, 401, { error: 'Sesi Owner diperlukan.' });
@@ -1406,7 +1596,7 @@ export async function createQueueServer({
           sendJson(response, 429, { error: 'Terlalu banyak percobaan PIN. Coba lagi sebentar.' }, { 'retry-after': String(Math.ceil(loginStatus.retryAfterMs / 1000)) });
           return;
         }
-        if (hasPinCollision(body.pin) || !verifyOwnerPin(securityStore.get(), body.pin)) {
+        if (!verifyOwnerPin(securityStore.get(), body.pin) || hasPinCollision(body.pin)) {
           ownerLoginLimiter.fail(loginKey);
           sendJson(response, 401, { error: 'PIN Pemilik tidak valid' });
           return;
@@ -1436,8 +1626,7 @@ export async function createQueueServer({
           sendJson(response, 429, { error: 'Terlalu banyak percobaan PIN. Coba lagi sebentar.' }, { 'retry-after': String(Math.ceil(loginStatus.retryAfterMs / 1000)) });
           return;
         }
-        const pinCollision = hasPinCollision(body.pin);
-        const employee = !pinCollision && body.username
+        const employee = body.username
           ? authenticateUser(registry, {
               username: body.username,
               pin: body.pin,
@@ -1445,11 +1634,10 @@ export async function createQueueServer({
               outletId: outlet.id,
             })
           : null;
-        const legacyValid = !pinCollision
-          && !body.username
+        const legacyValid = !body.username
           && outlet.legacyAdminDisabled !== true
           && verifyPinHash(outlet.adminPinHash, String(body.pin ?? '').trim());
-        if (!employee && !legacyValid) {
+        if ((!employee && !legacyValid) || hasPinCollision(body.pin)) {
           adminLoginLimiter.fail(loginKey);
           sendJson(response, 401, { error: 'Akun atau PIN Karyawan tidak valid' });
           return;
@@ -1502,7 +1690,7 @@ export async function createQueueServer({
           sendJson(response, 429, { error: 'Terlalu banyak percobaan PIN. Coba lagi sebentar.' }, { 'retry-after': String(Math.ceil(loginStatus.retryAfterMs / 1000)) });
           return;
         }
-        if (hasPinCollision(body.pin) || !verifyOwnerPin(securityStore.get(), body.pin)) {
+        if (!verifyOwnerPin(securityStore.get(), body.pin) || hasPinCollision(body.pin)) {
           ownerLoginLimiter.fail(loginKey);
           sendJson(response, 401, { error: 'PIN Pemilik tidak valid' });
           return;
@@ -1711,16 +1899,77 @@ export async function createQueueServer({
       }
 
       if (request.method === 'POST' && path === '/api/owner/clear-all-outlets-sales') {
-
         if (!ownerSession(request)) {
           sendJson(response, 401, { error: 'Sesi berakhir, masukkan PIN lagi.' });
           return;
         }
+        const body = await readJson(request);
+        const loginKey = `owner_clear:${requestIp(request)}`;
+        const status = ownerLoginLimiter.status(loginKey);
+        if (!status.allowed) {
+          sendJson(response, 429, { error: 'Terlalu banyak percobaan. Coba lagi sebentar.' }, { 'retry-after': String(Math.ceil(status.retryAfterMs / 1000)) });
+          return;
+        }
+        if (body?.confirmation !== 'HAPUS SEMUA') {
+          ownerLoginLimiter.fail(loginKey);
+          sendJson(response, 400, { error: 'Frasa konfirmasi "HAPUS SEMUA" wajib sesuai persis.' });
+          return;
+        }
+        if (!verifyOwnerPin(securityStore.get(), body?.currentPin)) {
+          ownerLoginLimiter.fail(loginKey);
+          sendJson(response, 401, { error: 'PIN Pemilik tidak valid.' });
+          return;
+        }
+        ownerLoginLimiter.success(loginKey);
+
+        const requestId = String(body?.requestId ?? '').trim();
+        if (requestId && processedRequests.has(requestId)) {
+          sendJson(response, 200, processedRequests.get(requestId));
+          return;
+        }
+
+        let totalDeletedOrders = 0;
+        const affectedOutlets = stores.size;
+
+        database.transaction(() => {
+          for (const [outletId, { store }] of stores.entries()) {
+            const current = store.get();
+            const orderCount = (current.orders || []).length;
+            totalDeletedOrders += orderCount;
+            const nextState = clearAllOrders(current);
+            database.writeState(`outlet:${outletId}`, nextState);
+          }
+          database.appendAudit({
+            actorType: 'owner',
+            actorId: 'owner',
+            action: 'owner.sales.clear_all',
+            metadata: {
+              confirmation: body.confirmation,
+              reason: body.reason || null,
+              affectedOutlets,
+              deletedOrders: totalDeletedOrders,
+              requestId: requestId || null,
+            },
+          });
+        });
+
         for (const [outletId, { store }] of stores.entries()) {
-          const nextState = await store.update((current) => clearAllOrders(current));
+          const nextState = store.refreshFromDatabase();
           broadcast(outletId, nextState);
         }
-        sendJson(response, 200, { ok: true });
+
+        const resultResponse = {
+          ok: true,
+          affectedOutlets,
+          deletedOrders: totalDeletedOrders,
+          requestId: requestId || null,
+        };
+
+        if (requestId) {
+          recordProcessedRequest(requestId, resultResponse);
+        }
+
+        sendJson(response, 200, resultResponse);
         return;
       }
 
@@ -1749,8 +1998,7 @@ export async function createQueueServer({
           sendJson(response, 429, { error: 'Terlalu banyak percobaan PIN. Coba lagi sebentar.' }, { 'retry-after': String(Math.ceil(loginStatus.retryAfterMs / 1000)) });
           return;
         }
-        const pinCollision = hasPinCollision(inputPin);
-        const employee = !pinCollision && body.username
+        const employee = body.username
           ? authenticateUser(registry, {
               username: body.username,
               pin: inputPin,
@@ -1758,8 +2006,8 @@ export async function createQueueServer({
               outletId,
             })
           : null;
-        const legacyValid = !pinCollision && !body.username && outlet.legacyAdminDisabled !== true && verifyPinHash(outlet.adminPinHash, inputPin);
-        if (!employee && !legacyValid) {
+        const legacyValid = !body.username && outlet.legacyAdminDisabled !== true && verifyPinHash(outlet.adminPinHash, inputPin);
+        if ((!employee && !legacyValid) || hasPinCollision(inputPin)) {
           adminLoginLimiter.fail(loginKey);
           sendJson(response, 401, { error: 'Akun atau PIN Karyawan tidak valid' });
           return;

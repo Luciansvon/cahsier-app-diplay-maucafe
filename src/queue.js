@@ -269,10 +269,183 @@ export function setProductImage(currentState, productId, imageUrl) {
 
 export function removeProduct(currentState, productId) {
   const state = clone(currentState);
-  const index = state.products.findIndex((candidate) => candidate.id === productId);
+  const index = state.products.findIndex((item) => item.id === productId);
   if (index === -1) throw new Error('Produk tidak ditemukan');
-  const [removed] = state.products.splice(index, 1);
-  return { state: changed(state), product: removed };
+  const [product] = state.products.splice(index, 1);
+  return { state: changed(state), product };
+}
+
+export function validateBulkProductRows(existingProducts, rows, { maxProducts = 500, maxRows = 250 } = {}) {
+  const rowErrors = [];
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { ok: false, error: 'Data import tidak boleh kosong', rowErrors: [{ row: 0, field: 'rows', message: 'Data import tidak boleh kosong' }] };
+  }
+  if (rows.length > maxRows) {
+    return { ok: false, error: `Jumlah baris melebihi batas maksimal ${maxRows}`, rowErrors: [{ row: 0, field: 'rows', message: `Maksimal ${maxRows} baris per transaksi` }] };
+  }
+
+  const existingMap = new Map((existingProducts || []).map((p) => [p.id, p]));
+  const existingNamesMap = new Map();
+  for (const p of (existingProducts || [])) {
+    const key = `${p.name.trim().toLowerCase()}|||${p.category.trim().toLowerCase()}`;
+    existingNamesMap.set(key, p.id);
+  }
+
+  const seenIdsInBatch = new Set();
+  const seenNamesInBatch = new Set();
+  const validatedRows = [];
+
+  let newCount = 0;
+  for (const row of rows) {
+    if (!row?.id) newCount++;
+  }
+  const projectedTotal = (existingProducts || []).length + newCount;
+  if (projectedTotal > maxProducts) {
+    return {
+      ok: false,
+      error: `Total produk melebihi batas ${maxProducts} (saat ini ${existingProducts.length}, baru ${newCount})`,
+      rowErrors: [{ row: 0, field: 'total', message: `Batas maksimal produk master adalah ${maxProducts}` }],
+    };
+  }
+
+  for (let i = 0; i < rows.length; i++) {
+    const rowNum = i + 1;
+    const item = rows[i];
+    if (!item || typeof item !== 'object') {
+      rowErrors.push({ row: rowNum, field: 'row', message: 'Format baris tidak valid' });
+      continue;
+    }
+
+    const id = item.id ? String(item.id).trim() : null;
+    if (id) {
+      if (seenIdsInBatch.has(id)) {
+        rowErrors.push({ row: rowNum, field: 'id', message: `ID '${id}' duplikat dalam batch import` });
+      }
+      seenIdsInBatch.add(id);
+      if (!existingMap.has(id)) {
+        rowErrors.push({ row: rowNum, field: 'id', message: `Produk dengan ID '${id}' tidak ditemukan untuk diperbarui` });
+      }
+    }
+
+    let name = '';
+    try {
+      name = requireText(item.name, 'Nama produk', 100);
+    } catch (e) {
+      rowErrors.push({ row: rowNum, field: 'name', message: e.message });
+    }
+
+    let category = '';
+    try {
+      category = requireText(item.category, 'Kategori', 50);
+    } catch (e) {
+      rowErrors.push({ row: rowNum, field: 'category', message: e.message });
+    }
+
+    let price = 0;
+    try {
+      price = requirePrice(item.price);
+    } catch (e) {
+      rowErrors.push({ row: rowNum, field: 'price', message: e.message });
+    }
+
+    let cost = 0;
+    try {
+      cost = requireCost(item.cost);
+    } catch (e) {
+      rowErrors.push({ row: rowNum, field: 'cost', message: e.message });
+    }
+
+    let cupUsage = 1;
+    try {
+      cupUsage = requireCupUsage(item.cupUsage ?? 1);
+    } catch (e) {
+      rowErrors.push({ row: rowNum, field: 'cupUsage', message: e.message });
+    }
+
+    const active = item.active !== false;
+
+    if (name && category) {
+      const normKey = `${name.toLowerCase()}|||${category.toLowerCase()}`;
+      if (seenNamesInBatch.has(normKey)) {
+        rowErrors.push({ row: rowNum, field: 'name', message: `Produk '${name}' (${category}) duplikat dalam batch import` });
+      }
+      seenNamesInBatch.add(normKey);
+
+      const existingId = existingNamesMap.get(normKey);
+      if (!id && existingId) {
+        rowErrors.push({ row: rowNum, field: 'name', message: `Produk '${name}' (${category}) sudah ada di database. Masukkan ID jika ingin mengubah` });
+      }
+    }
+
+    validatedRows.push({
+      id,
+      name,
+      category,
+      price,
+      cost,
+      cupUsage,
+      active,
+    });
+  }
+
+  if (rowErrors.length > 0) {
+    return { ok: false, error: 'Import menu tidak valid', rowErrors };
+  }
+
+  return { ok: true, validatedRows };
+}
+
+export function bulkUpsertMasterProducts(currentState, validatedRows) {
+  const state = clone(currentState);
+  let created = 0;
+  let updated = 0;
+  let unchanged = 0;
+
+  for (const row of validatedRows) {
+    if (row.id) {
+      const idx = state.products.findIndex((p) => p.id === row.id);
+      if (idx !== -1) {
+        const currentProd = state.products[idx];
+        const isSame = currentProd.name === row.name &&
+          currentProd.category === row.category &&
+          currentProd.price === row.price &&
+          currentProd.cost === row.cost &&
+          currentProd.cupUsage === row.cupUsage &&
+          currentProd.active === row.active;
+        if (isSame) {
+          unchanged++;
+        } else {
+          state.products[idx] = {
+            ...currentProd,
+            name: row.name,
+            category: row.category,
+            price: row.price,
+            cost: row.cost,
+            cupUsage: row.cupUsage,
+            active: row.active,
+          };
+          updated++;
+        }
+      }
+    } else {
+      const newProd = {
+        id: randomUUID(),
+        name: row.name,
+        category: row.category,
+        price: row.price,
+        cost: row.cost,
+        cupUsage: row.cupUsage,
+        active: row.active,
+      };
+      state.products.push(newProd);
+      created++;
+    }
+  }
+
+  return {
+    state: changed(state),
+    summary: { created, updated, unchanged },
+  };
 }
 
 function createOwnerPinHash(pin) {
