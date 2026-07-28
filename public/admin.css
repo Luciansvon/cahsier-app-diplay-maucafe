@@ -200,3 +200,148 @@
   .product-grid { grid-template-columns: 1fr 1fr; }
   .product-card { min-height: 116px; padding: 12px; }
 }
+
+/* typography-spacing-fix: admin */
+.admin-page {
+  padding-left: max(var(--page-gutter), var(--safe-left));
+  padding-right: max(var(--page-gutter), var(--safe-right));
+}
+
+.admin-header,
+.section-heading,
+.header-actions {
+  min-width: 0;
+}
+
+.admin-header h1,
+.section-heading h2 {
+  line-height: 1.2;
+}
+
+.header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.tab {
+  min-width: 0;
+  padding: 7px 8px;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.product-card {
+  gap: 8px;
+  padding: clamp(14px, 2vw, 17px);
+}
+
+.product-card strong {
+  display: block;
+  width: 100%;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.product-category {
+  line-height: 1.3;
+  letter-spacing: .07em;
+  overflow-wrap: anywhere;
+}
+
+.product-price,
+.order-summary,
+.wait-time,
+.shift-status,
+.daily-summary-grid span {
+  line-height: 1.4;
+}
+
+.cart-row > div:first-child,
+.cart-row strong,
+.cart-row small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.order-card {
+  padding: clamp(15px, 2vw, 18px);
+}
+
+.order-actions button {
+  min-width: 0;
+  padding-inline: 12px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.daily-summary-grid article,
+.operations-grid > .card {
+  padding: clamp(16px, 2.2vw, 20px);
+}
+
+.media-playlist-item {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+}
+
+.media-playlist-item strong {
+  min-width: min(100%, 160px);
+  white-space: normal;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .admin-page {
+    padding-left: max(14px, var(--safe-left));
+    padding-right: max(14px, var(--safe-right));
+  }
+
+  .tab {
+    min-height: 44px;
+    font-size: 11.5px;
+  }
+
+  .section-heading {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 430px) {
+  .tab-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .admin-header {
+    flex-wrap: wrap;
+  }
+
+  .header-actions {
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: row;
+  }
+
+  .section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 360px) {
+  .product-grid,
+  .daily-summary-grid,
+  .order-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .order-actions .danger {
+    grid-column: auto;
+  }
+}

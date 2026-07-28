@@ -651,3 +651,36 @@ Verifikasi:
 2. `npm test` lulus seluruh 98 unit/integration test.
 3. `npm run build` lulus tanpa error.
 
+## UI-TYPOGRAPHY-2026-07-28 - Teks terlalu rapat, terpotong, dan sulit dibaca
+
+### Kondisi/gejala
+
+- Teks tab, tombol, judul kartu, dan label panjang terlalu dekat dengan tepi container.
+- Tab Owner dipaksa lima kolom pada layar sempit sehingga label mengecil atau membungkus secara buruk.
+- Form media dan Karyawan pada halaman Mitra tetap memakai beberapa kolom pada HP.
+- Beberapa nama produk/media menggunakan \`white-space: nowrap\` sehingga terpotong.
+- Line-height sejumlah label kecil terlalu rapat, terutama saat teks membungkus menjadi dua baris.
+
+### Root cause
+
+- Gutter halaman minimum hanya 12px pada beberapa role.
+- Aturan tipografi tersebar tanpa baseline line-height dan wrapping bersama.
+- Layout responsif tab/form belum mengubah jumlah kolom pada viewport sempit.
+- Komponen tombol dan item playlist mempertahankan \`nowrap\` meskipun ruang tidak cukup.
+
+### Solusi
+
+- Menambahkan \`--page-gutter\` bersama sebesar 16-24px dan menerapkannya pada Kasir, Owner, Mitra, serta launcher.
+- Menetapkan baseline line-height, wrapping aman, padding input, dan tombol multiline.
+- Mengubah tab Kasir menjadi 2 kolom pada <=430px.
+- Mengubah tab Owner menjadi 3 kolom pada <=700px dan 2 kolom pada <=430px.
+- Mengubah tab Mitra menjadi 2 kolom dan form media/Karyawan menjadi 1 kolom pada <=600px.
+- Menghapus pemotongan paksa pada nama produk/media dan menambah ruang internal kartu.
+- Menambah regression test di \`test/ui-contract.test.js\`.
+
+### Bukti verifikasi aktual
+
+- Verifikasi otomatis: GAGAL
+- Perintah terakhir: Perintah gagal (1): npm test
+- Waktu verifikasi: 2026-07-28T02:46:22.823Z
+- Perbaiki error, lalu jalankan ulang `npm test` dan `npm run build`.

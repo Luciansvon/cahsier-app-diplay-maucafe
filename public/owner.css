@@ -169,3 +169,150 @@
   .owner-metrics, .outlet-card-metrics { grid-template-columns: 1fr; }
   .owner-revenue-card { grid-column: auto; }
 }
+
+/* typography-spacing-fix: owner */
+#owner-dashboard {
+  padding-left: max(var(--page-gutter), var(--safe-left));
+  padding-right: max(var(--page-gutter), var(--safe-right));
+}
+
+.owner-header,
+.owner-header-actions,
+.global-outlet-bar,
+.owner-section-title,
+.partner-summary-heading,
+.partner-outlet-row,
+.menu-item-header,
+.menu-item-actions-row,
+.franchise-row {
+  min-width: 0;
+}
+
+.owner-header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.global-outlet-bar {
+  padding: 12px 14px;
+}
+
+.owner-tab {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  line-height: 1.25;
+  letter-spacing: .035em;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.owner-section {
+  padding: clamp(18px, 2.5vw, 22px);
+}
+
+.owner-section-title h2,
+.owner-section-title h3,
+.partner-summary-heading h3,
+.outlet-card-header h3 {
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.owner-metric {
+  padding: clamp(15px, 2vw, 18px);
+}
+
+.owner-metric span,
+.outlet-card-metric span,
+.active-outlet-badge,
+.category-badge,
+.menu-item-category-badge {
+  line-height: 1.35;
+}
+
+.owner-metric strong,
+.outlet-card-metric strong {
+  line-height: 1.15;
+}
+
+.partner-summary-card,
+.outlet-card,
+.sale-row,
+.menu-item-edit-card {
+  padding: clamp(14px, 2vw, 18px);
+}
+
+.partner-summary-heading small,
+.partner-outlet-row small,
+.outlet-address-tag,
+.sale-items,
+.sale-meta {
+  line-height: 1.4;
+}
+
+.report-table th,
+.report-table td {
+  line-height: 1.4;
+  vertical-align: top;
+}
+
+.menu-item-header,
+.menu-item-actions-row,
+.franchise-row {
+  flex-wrap: wrap;
+}
+
+.media-playlist-item {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+}
+
+.media-playlist-item strong {
+  min-width: min(100%, 160px);
+  white-space: normal;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .owner-tab-bar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .owner-tab {
+    padding: 8px 7px;
+  }
+}
+
+@media (max-width: 480px) {
+  #owner-dashboard {
+    padding-left: max(14px, var(--safe-left));
+    padding-right: max(14px, var(--safe-right));
+  }
+
+  .owner-header-actions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .owner-section {
+    padding: 16px;
+  }
+
+  .partner-summary-card,
+  .outlet-card,
+  .sale-row {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 430px) {
+  .owner-tab-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

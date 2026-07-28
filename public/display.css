@@ -27,3 +27,43 @@
 .promo-panel { position: relative; flex: 0 0 66%; min-width: 0; overflow: hidden; padding: 0; background: #000; }
 .promo-wrapper { position: absolute; inset: 0; }
 .promo-video, .promo-image { display: block; width: 100%; height: 100%; max-height: 100%; border-radius: 0; object-fit: cover; background: #000; }
+
+/* typography-spacing-fix: display */
+.queue-panel {
+  padding: clamp(28px, 3.8vw, 64px);
+}
+
+.display-brand {
+  min-width: 0;
+  line-height: 1.25;
+  letter-spacing: .11em;
+  overflow-wrap: anywhere;
+}
+
+.queue-label,
+.preparing-label {
+  line-height: 1.25;
+  letter-spacing: .11em;
+}
+
+.pickup-message {
+  max-width: 100%;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.preparing-status {
+  line-height: 1.3;
+}
+
+.display-controls {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.voice-button {
+  max-width: 100%;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
