@@ -8,3 +8,5 @@
   - Sediakan tautan (link) atau angka IP langsung agar mudah diketik/diklik saat pengujian.
 - **Catatan Pengujian**:
   - Sering menguji aplikasi langsung di HP (Browser HP atau APK Android).
+  - Lebih menyukai penggunaan aplikasi dalam bentuk software desktop ketimbang tab browser.
+

@@ -1008,7 +1008,7 @@ test('all-outlet summary always reports the current Jakarta business date', asyn
   assert.equal(summary.payload.summaries[0].activeCount, 0);
   assert.equal(
     app.stores.get(defaultOutletId).store.get().orders.find((order) => order.status === 'expired').paymentStatus,
-    'void',
+    'paid',
   );
 });
 
@@ -1232,3 +1232,45 @@ test('public event stream contains display data only', async (t) => {
   assert.match(text, /"revision":\d+/);
   assert.doesNotMatch(text, /unitCost|ownerPinHash|paymentMethod|"orders"/);
 });
+
+test('Partner can view sanitized products and toggle menu active status per outlet', async (t) => {
+  const { baseUrl, defaultOutletId } = await fixture(t, {
+    registryPatch: {
+      outlets: [
+        { id: 'maucafe-alunalun', name: 'Maucafe Alun-Alun', address: 'Jepara', partnerId: 'partner-1', status: 'active', adminPinHash: createPinHash('1111') },
+        { id: 'maucafe-pik', name: 'Maucafe PIK', address: 'PIK', partnerId: 'partner-2', status: 'active', adminPinHash: createPinHash('2222') },
+      ],
+      partners: [{ id: 'partner-1', name: 'Mitra 1', outletIds: ['maucafe-alunalun'], active: true }],
+      users: [{ id: 'u-partner-1', username: 'mitra1', name: 'Mitra 1', role: 'partner', partnerId: 'partner-1', outletIds: ['maucafe-alunalun'], pinHash: createPinHash('9999'), active: true }],
+      masterProducts: [{ id: 'latte', name: 'Latte', category: 'Kopi', price: 20000, cost: 8000, active: true }],
+    },
+  });
+
+  const loginRes = await jsonRequest(`${baseUrl}/api/partner/login`, 'POST', { username: 'mitra1', pin: '9999' });
+  assert.equal(loginRes.response.status, 200);
+  const partnerCookie = loginRes.response.headers.get('set-cookie');
+
+  // Fetch partner products
+  const productsRes = await jsonRequest(`${baseUrl}/api/partner/outlets/maucafe-alunalun/products`, 'GET', undefined, partnerCookie);
+  assert.equal(productsRes.response.status, 200);
+  assert.equal(productsRes.payload.products.length, 1);
+  assert.equal(productsRes.payload.products[0].id, 'latte');
+  assert.equal(productsRes.payload.products[0].active, true);
+  // Ensure HPP/cost is NOT exposed
+  assert.equal(productsRes.payload.products[0].cost, undefined);
+  assert.equal(productsRes.payload.products[0].unitCost, undefined);
+
+  // Toggle product to inactive
+  const toggleRes = await jsonRequest(`${baseUrl}/api/partner/outlets/maucafe-alunalun/products/latte`, 'PATCH', { active: false }, partnerCookie);
+  assert.equal(toggleRes.response.status, 200);
+  assert.equal(toggleRes.payload.product.active, false);
+
+  // Verify product is inactive in maucafe-alunalun
+  const checkRes = await jsonRequest(`${baseUrl}/api/partner/outlets/maucafe-alunalun/products`, 'GET', undefined, partnerCookie);
+  assert.equal(checkRes.payload.products[0].active, false);
+
+  // Unauthorized partner attempting to toggle outlet 2
+  const unauthRes = await jsonRequest(`${baseUrl}/api/partner/outlets/maucafe-pik/products/latte`, 'PATCH', { active: false }, partnerCookie);
+  assert.equal(unauthRes.response.status, 403);
+});
+

@@ -592,3 +592,62 @@ Verifikasi:
 - Delapan waiting berotasi dari `1, 2, 3, 4, 5, 6` ke `7, 8`. Setelah nomor 1 lalu 2 dipanggil, nomor besar menjadi `2`, kedua order tetap `ready`, dan waiting menjadi `3–8`.
 - Saat alur panggilan aktif, video tetap `paused: false` dan `ended: false`. Console browser mencatat `0` error/warning.
 - `npm test` lulus `93/93` dan `npm run build` lulus.
+
+## ERR-REVIEW-2026-07-28 - Audit akses franchise, laporan pembayaran, dan media
+
+### Gejala
+
+1. Pesanan yang sudah dibayar berubah menjadi `void` saat pergantian hari atau reset antrean sehingga hilang dari laporan, kas shift, HPP, dan estimasi penggunaan cup.
+2. Approval pembatalan tidak menerapkan pemeriksaan benturan PIN yang sama seperti login Owner.
+3. Upload promo tidak memiliki batas total storage atau jumlah foto.
+4. Kegagalan setelah state media/foto produk dikomit dapat menghapus file baru yang sudah direferensikan database.
+5. Outlet pending tanpa `adminPinHash` dapat membuat startup berikutnya gagal.
+
+### Root cause
+
+- Status antrean dan status pembayaran dicampur.
+- Jalur approval Owner memakai validasi lebih lemah daripada login Owner.
+- Rate limit upload tidak disertai quota storage dan jumlah item.
+- Cleanup file berada pada blok `catch` yang juga menangkap kegagalan setelah commit state.
+- Credential outlet pending tidak dinormalisasi untuk kebutuhan restart.
+
+### Solusi
+
+- Sesi Karyawan dan Mitra divalidasi ulang terhadap registry terbaru.
+- Rollover/reset hanya menutup antrean; pembayaran `paid` tetap `paid`. Laporan dan ledger menghitung berdasarkan status pembayaran.
+- Approval pembatalan fail-closed saat PIN bertabrakan.
+- Playlist dibatasi 20 media, 15 foto, 5 video; foto maksimal 5 MB dan storage promo per outlet maksimal 100 MB.
+- File upload hanya dibersihkan jika state belum berhasil dikomit.
+- Outlet pending/approved selalu memiliki credential hash tanpa plaintext.
+- Regression test dan GitHub Actions CI ditambahkan.
+
+### Verifikasi wajib
+
+Jalankan:
+
+```bash
+npm test
+npm run build
+```
+
+Regression test: `test/review-regressions.test.js`.
+
+## ERR-018 - Pengelolaan & Pemilihan Menu Outlet oleh Mitra dari Master Owner
+
+Kondisi:
+Mitra tidak memiliki akses untuk memilih menu yang dijual di outletnya sendiri. Jika Owner memperbarui harga/detail Master Menu, status `active` outlet pada menu tersebut tertimpa oleh data Master Menu.
+
+Penyebab:
+1. Belum ada API dan UI di Panel Mitra bagi Mitra untuk memilih (aktif/nonaktifkan) menu outlet miliknya dari daftar Master Menu yang dibuat oleh Owner.
+2. Penggabungan `masterProducts` di `initializeOutlet` dan `mutateMasterProducts` sebelumnya langsung menimpa array `products` outlet tanpa mempertahankan status `active` lokal per outlet yang sudah disesuaikan oleh Mitra.
+
+Solusi:
+1. Menambahkan endpoint GET `/api/partner/outlets/:outletId/products` dan PATCH `/api/partner/outlets/:outletId/products/:productId` dengan verifikasi kepemilikan outlet (`partnerOwnsOutlet`) dan penyaringan data sensitif (HPP/cost disembunyikan sesuai `AGENTS.md`).
+2. Memperbarui logika penggabungan produk master sehingga status `active` per outlet tetap dipertahankan saat Owner memperbarui atribut Master Menu, selama produk tersebut tidak dinonaktifkan secara global oleh Owner: `active = (mp.active !== false) && (existing ? existing.active !== false : true)`.
+3. Menambahkan tab UI **"Pilih Menu"** pada Panel Mitra (`partner.html`, `partner.css`, `partner.js`) dengan fitur filter kategori dan tombol sakelar toggle Aktif/Nonaktif per menu.
+
+Verifikasi:
+1. Automated unit test `test/server.test.js` memverifikasi Mitra dapat mengambil daftar produk tersaring, mengubah status aktif menu outlet miliknya sendiri, dan menolak akses Mitra yang tidak berwenang.
+2. `npm test` lulus seluruh 98 unit/integration test.
+3. `npm run build` lulus tanpa error.
+

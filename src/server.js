@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { createReadStream } from 'node:fs';
 import { randomBytes } from 'node:crypto';
-import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { dirname, extname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -77,6 +77,8 @@ const CONTENT_TYPES = {
   '.webp': 'image/webp',
 };
 const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
+const MAX_PROMO_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_MEDIA_STORAGE_BYTES = 100 * 1024 * 1024;
 const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024;
 const NATIVE_ORIGINS = new Set(['http://localhost', 'https://localhost', 'capacitor://localhost']);
 
@@ -436,7 +438,9 @@ async function loadOutletsConfig(outletsFilePath) {
       delete outlet.adminPin;
       migrated = true;
     }
-    if (!outlet.adminPinHash) throw new Error(`Outlet ${outlet.id} belum memiliki adminPinHash`);
+    if (!outlet.adminPinHash && outlet.status === 'active') {
+      throw new Error(`Outlet aktif ${outlet.id} belum memiliki adminPinHash`);
+    }
     delete outlet.adminPin;
     return outlet;
   });
@@ -516,8 +520,18 @@ export async function createQueueServer({
     const masterProducts = registry.masterProducts.length
       ? registry.masterProducts
       : initialState.products ?? [];
-    if (JSON.stringify(normalized.state.products) !== JSON.stringify(masterProducts)) {
-      normalized.state.products = structuredClone(masterProducts);
+    const existingProductsMap = new Map((normalized.state.products || []).map((p) => [p.id, p]));
+    const mergedProducts = masterProducts.map((mp) => {
+      const existing = existingProductsMap.get(mp.id);
+      const disabledByPartner = existing?.disabledByPartner === true;
+      return {
+        ...mp,
+        disabledByPartner,
+        active: (mp.active !== false) && !disabledByPartner,
+      };
+    });
+    if (JSON.stringify(normalized.state.products) !== JSON.stringify(mergedProducts)) {
+      normalized.state.products = mergedProducts;
       normalized.state.revision = (normalized.state.revision ?? 0) + 1;
       normalized.changed = true;
     }
@@ -579,6 +593,25 @@ export async function createQueueServer({
       if (token) adminSessions.delete(token);
       return null;
     }
+    const currentOutlet = stores.get(outletId)?.outlet;
+    if (session.legacy) {
+      if (!currentOutlet || currentOutlet.legacyAdminDisabled === true) {
+        adminSessions.delete(token);
+        return null;
+      }
+    } else {
+      const user = registry.users.find((candidate) => (
+        candidate.id === session.userId
+        && candidate.role === 'employee'
+        && candidate.active !== false
+        && candidate.outletIds.includes(outletId)
+        && candidate.partnerId === currentOutlet?.partnerId
+      ));
+      if (!user) {
+        adminSessions.delete(token);
+        return null;
+      }
+    }
     return { token, ...session };
   }
 
@@ -599,7 +632,11 @@ export async function createQueueServer({
       && candidate.role === 'partner'
       && candidate.active !== false
     ));
-    if (!user) {
+    const partner = registry.partners.find((candidate) => (
+      candidate.id === session.partnerId
+      && candidate.active !== false
+    ));
+    if (!user || !partner || user.partnerId !== partner.id) {
       partnerSessions.delete(token);
       return null;
     }
@@ -730,6 +767,29 @@ export async function createQueueServer({
     return true;
   }
 
+  async function mediaStorageBytes(outletId) {
+    const mediaDir = join(publicDir, 'media');
+    let filenames;
+    try {
+      filenames = await readdir(mediaDir);
+    } catch (error) {
+      if (error.code === 'ENOENT') return 0;
+      throw error;
+    }
+    const prefix = `uploaded-promo-${outletId}-`;
+    let total = 0;
+    for (const filename of filenames) {
+      if (!filename.startsWith(prefix)) continue;
+      try {
+        const info = await stat(join(mediaDir, filename));
+        if (info.isFile()) total += info.size;
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+    }
+    return total;
+  }
+
   function broadcastGroup(clients, payload) {
     if (!clients) return;
     const message = `data: ${JSON.stringify(payload)}\n\n`;
@@ -770,9 +830,19 @@ export async function createQueueServer({
       const nextStates = new Map();
       for (const [targetOutletId, target] of stores) {
         const current = target.store.get();
+        const existingProductsMap = new Map((current.products || []).map((p) => [p.id, p]));
+        const mergedProducts = masterProducts.map((mp) => {
+          const existing = existingProductsMap.get(mp.id);
+          const disabledByPartner = existing?.disabledByPartner === true;
+          return {
+            ...mp,
+            disabledByPartner,
+            active: (mp.active !== false) && !disabledByPartner,
+          };
+        });
         nextStates.set(targetOutletId, {
           ...current,
-          products: structuredClone(masterProducts),
+          products: mergedProducts,
           revision: (current.revision ?? 0) + 1,
         });
       }
@@ -1194,6 +1264,79 @@ export async function createQueueServer({
         return;
       }
 
+      const partnerGetProductsRoute = path.match(/^\/api\/partner\/outlets\/([^/]+)\/products$/);
+      if (request.method === 'GET' && partnerGetProductsRoute) {
+        const session = partnerSession(request);
+        const outletId = partnerGetProductsRoute[1];
+        if (!session || !partnerOwnsOutlet(registry, session.partnerId, outletId)) {
+          sendJson(response, 403, { error: 'Outlet bukan milik Mitra ini.' });
+          return;
+        }
+        const target = stores.get(outletId);
+        if (!target) {
+          sendJson(response, 404, { error: 'Outlet tidak ditemukan.' });
+          return;
+        }
+        const snapshot = target.store.get();
+        const sanitizedProducts = (snapshot.products || []).map(({ id, name, category, price, active, imageUrl, cupUsage }) => ({
+          id,
+          name,
+          category,
+          price,
+          active: active !== false,
+          imageUrl: imageUrl ?? null,
+          cupUsage: cupUsage ?? 1,
+        }));
+        sendJson(response, 200, { products: sanitizedProducts });
+        return;
+      }
+
+      const partnerToggleProductRoute = path.match(/^\/api\/partner\/outlets\/([^/]+)\/products\/([^/]+)$/);
+      if (request.method === 'PATCH' && partnerToggleProductRoute) {
+        const session = partnerSession(request);
+        const [, outletId, productId] = partnerToggleProductRoute;
+        if (!session || !partnerOwnsOutlet(registry, session.partnerId, outletId)) {
+          sendJson(response, 403, { error: 'Outlet bukan milik Mitra ini.' });
+          return;
+        }
+        const body = await readJson(request);
+        if (typeof body.active !== 'boolean') {
+          sendJson(response, 400, { error: 'Status aktif produk harus berupa boolean.' });
+          return;
+        }
+        const { state: nextState, output } = await mutate(outletId, (current) => {
+          const products = Array.isArray(current.products) ? [...current.products] : [];
+          const index = products.findIndex((p) => p.id === productId);
+          if (index === -1) throw new Error('Produk tidak ditemukan');
+          products[index] = {
+            ...products[index],
+            active: body.active,
+            disabledByPartner: !body.active,
+          };
+          return {
+            state: { ...current, products, revision: (current.revision ?? 0) + 1 },
+            product: products[index],
+          };
+        });
+        database.appendAudit({
+          actorType: 'partner',
+          actorId: session.userId,
+          action: 'partner.product.toggle',
+          outletId,
+          metadata: { productId, active: body.active },
+        });
+        const sanitizedProduct = {
+          id: output.product.id,
+          name: output.product.name,
+          category: output.product.category,
+          price: output.product.price,
+          active: output.product.active !== false,
+          imageUrl: output.product.imageUrl ?? null,
+        };
+        sendJson(response, 200, { ok: true, product: sanitizedProduct });
+        return;
+      }
+
       if (request.method === 'GET' && path === '/api/owner/franchise') {
         if (!ownerSession(request)) {
           sendJson(response, 401, { error: 'Sesi Owner diperlukan.' });
@@ -1302,6 +1445,7 @@ export async function createQueueServer({
           : null;
         const legacyValid = !pinCollision
           && !body.username
+          && outlet.legacyAdminDisabled !== true
           && verifyPinHash(outlet.adminPinHash, String(body.pin ?? '').trim());
         if (!employee && !legacyValid) {
           adminLoginLimiter.fail(loginKey);
@@ -1612,7 +1756,7 @@ export async function createQueueServer({
               outletId,
             })
           : null;
-        const legacyValid = !pinCollision && !body.username && verifyPinHash(outlet.adminPinHash, inputPin);
+        const legacyValid = !pinCollision && !body.username && outlet.legacyAdminDisabled !== true && verifyPinHash(outlet.adminPinHash, inputPin);
         if (!employee && !legacyValid) {
           adminLoginLimiter.fail(loginKey);
           sendJson(response, 401, { error: 'Akun atau PIN Karyawan tidak valid' });
@@ -1989,7 +2133,7 @@ export async function createQueueServer({
             sendJson(response, 429, { error: 'Terlalu banyak percobaan PIN Pemilik. Coba lagi sebentar.' });
             return;
           }
-          if (!verifyOwnerPin(securityStore.get(), body.ownerPin)) {
+          if (hasPinCollision(body.ownerPin) || !verifyOwnerPin(securityStore.get(), body.ownerPin)) {
             ownerLoginLimiter.fail(approvalKey);
             sendJson(response, 403, { error: 'PIN Pemilik diperlukan untuk membatalkan pesanan.' });
             return;
@@ -2053,6 +2197,7 @@ export async function createQueueServer({
             excludeKey: `outlet:${outletId}`,
           });
           targetOutlet.adminPinHash = createPinHash(newPin);
+          targetOutlet.legacyAdminDisabled = false;
           return { registry: current, outlet: targetOutlet };
         }, {
           actorType: 'owner',
@@ -2160,16 +2305,18 @@ export async function createQueueServer({
         const safeFilename = `uploaded-product-${productImageRoute[1]}-${uploadSuffix()}${detected.ext}`;
         const filePath = join(mediaDir, safeFilename);
         await writeFile(filePath, buffer, { flag: 'wx' });
+        let productImageCommitted = false;
         try {
           const { state: nextState, product } = await mutateMasterProducts(
             outletId,
             (current) => setProductImage(current, productImageRoute[1], `/media/${safeFilename}`),
             'product.image.update',
           );
-          await removeManagedProductImage(publicDir, previousProduct.imageUrl);
+          productImageCommitted = true;
+          await removeManagedProductImage(publicDir, previousProduct.imageUrl).catch(() => {});
           sendJson(response, 200, { state: ownerState(nextState), product });
         } catch (error) {
-          await unlink(filePath).catch(() => {});
+          if (!productImageCommitted) await unlink(filePath).catch(() => {});
           throw error;
         }
         return;
@@ -2216,6 +2363,15 @@ export async function createQueueServer({
           sendJson(response, 400, { error: 'Tipe file tidak cocok dengan isi file.' });
           return;
         }
+        if (detected.type === 'image' && buffer.length > MAX_PROMO_IMAGE_BYTES) {
+          sendJson(response, 413, { error: 'Ukuran foto promo maksimal 5MB.' });
+          return;
+        }
+        const usedStorageBytes = await mediaStorageBytes(outletId);
+        if (usedStorageBytes + buffer.length > MAX_MEDIA_STORAGE_BYTES) {
+          sendJson(response, 413, { error: 'Penyimpanan media outlet maksimal 100MB.' });
+          return;
+        }
         let durationSeconds = null;
         if (detected.type === 'video') {
           if (detected.mime !== 'video/mp4') {
@@ -2243,6 +2399,7 @@ export async function createQueueServer({
         const safeFilename = `uploaded-promo-${outletId}-${uploadSuffix()}${detected.ext}`;
         const filePath = join(mediaDir, safeFilename);
         await writeFile(filePath, buffer, { flag: 'wx' });
+        let mediaCommitted = false;
 
         try {
           const mediaUrl = `/media/${safeFilename}`;
@@ -2268,6 +2425,7 @@ export async function createQueueServer({
             };
             return added;
           });
+          mediaCommitted = true;
           database.appendAudit({
             actorType: ownerToken ? 'owner' : partnerAllowed ? 'partner' : 'employee',
             actorId: ownerToken ? 'owner' : partnerAllowed ? partner.userId : admin.userId,
@@ -2285,7 +2443,7 @@ export async function createQueueServer({
             item: output.item,
           });
         } catch (error) {
-          await unlink(filePath).catch(() => {});
+          if (!mediaCommitted) await unlink(filePath).catch(() => {});
           throw error;
         }
         return;
@@ -2345,7 +2503,7 @@ export async function createQueueServer({
           }
           return removed;
         });
-        await removeManagedMedia(publicDir, output.item);
+        await removeManagedMedia(publicDir, output.item).catch(() => {});
         database.appendAudit({
           actorType: ownerToken ? 'owner' : partnerAllowed ? 'partner' : 'employee',
           actorId: ownerToken ? 'owner' : partnerAllowed ? partner.userId : admin.userId,

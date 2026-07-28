@@ -60,7 +60,7 @@ test('resets numbering automatically when Jakarta business date changes', () => 
 
   assert.equal(result.order.queueNumber, '1');
   assert.equal(result.state.orders[0].status, 'expired');
-  assert.equal(result.state.orders[0].paymentStatus, 'void');
+  assert.equal(result.state.orders[0].paymentStatus, 'paid');
   assert.equal(result.state.orders[0].expiredReason, 'Pergantian hari operasional');
 });
 
@@ -90,7 +90,7 @@ test('rollover expires stale active orders without resetting speech event IDs', 
   assert.equal(state.businessDate, '2026-07-24');
   assert.equal(state.nextQueueNumber, 1);
   assert.equal(state.orders[0].status, 'expired');
-  assert.equal(state.orders[0].paymentStatus, 'void');
+  assert.equal(state.orders[0].paymentStatus, 'paid');
   assert.equal(state.orders[0].expiredAt, '2026-07-24T02:00:00.000Z');
   assert.equal(state.orders[0].expiredReason, 'Pergantian hari operasional');
   assert.equal(state.activeCall, null);
@@ -197,11 +197,10 @@ test('reset cancels active orders and preserves closed sales history', () => {
 
   assert.equal(state.orders.length, 2);
   assert.equal(state.orders[0].status, 'completed');
-  assert.equal(state.orders[1].status, 'cancelled');
-  assert.equal(state.orders[1].paymentStatus, 'void');
+  assert.equal(state.orders[1].status, 'expired');
+  assert.equal(state.orders[1].paymentStatus, 'paid');
   assert.equal(state.orders[1].updatedAt, '2026-07-23T02:05:00.000Z');
-  assert.equal(state.orders[1].cancelReason, 'Reset antrean oleh Owner');
-  assert.equal(state.orders[1].approvedBy, 'owner');
+  assert.equal(state.orders[1].expiredReason, 'Reset antrean oleh Owner');
   assert.equal(state.activeCall, null);
   assert.equal(state.nextQueueNumber, 1);
 });

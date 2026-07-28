@@ -63,7 +63,7 @@ function paidCashSales(state, shiftId) {
       order.shiftId === shiftId
       && order.paymentMethod === 'cash'
       && order.paymentStatus !== 'void'
-      && !['cancelled', 'expired'].includes(order.status)
+      && order.status !== 'cancelled'
     ))
     .reduce((sum, order) => sum + (order.grandTotal ?? order.total ?? 0), 0);
 }
@@ -236,7 +236,7 @@ export function inventorySummary(state, businessDate = jakartaDate(new Date().to
     .filter((order) => (
       order.businessDate === businessDate
       && order.paymentStatus !== 'void'
-      && !['cancelled', 'expired'].includes(order.status)
+      && order.status !== 'cancelled'
     ))
     .flatMap((order) => order.items ?? [])
     .reduce((sum, item) => sum + (item.cupUsage ?? 0) * (item.quantity ?? 0), 0);

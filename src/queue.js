@@ -95,7 +95,6 @@ export function rolloverBusinessDay(currentState, now = new Date().toISOString()
   for (const order of state.orders ?? []) {
     if (['waiting', 'ready'].includes(order.status)) {
       order.status = 'expired';
-      order.paymentStatus = 'void';
       order.expiredAt = now;
       order.expiredReason = 'Pergantian hari operasional';
       order.updatedAt = now;
@@ -218,12 +217,9 @@ export function resetQueue(currentState, now = new Date().toISOString()) {
   state.nextQueueNumber = 1;
   for (const order of state.orders) {
     if (['waiting', 'ready'].includes(order.status)) {
-      order.status = 'cancelled';
-      order.paymentStatus = 'void';
-      order.cancelledAt = now;
-      order.cancelReason = 'Reset antrean oleh Owner';
-      order.cancelledBy = 'owner';
-      order.approvedBy = 'owner';
+      order.status = 'expired';
+      order.expiredAt = now;
+      order.expiredReason = 'Reset antrean oleh Owner';
       order.updatedAt = now;
     }
   }

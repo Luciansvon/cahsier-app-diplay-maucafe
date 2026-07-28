@@ -9,8 +9,8 @@ export function summarizeSales(orders = [], businessDate, {
     ))
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   const counted = transactions.filter((order) => (
-    !['cancelled', 'expired'].includes(order.status)
-    && order.paymentStatus !== 'void'
+    order.paymentStatus !== 'void'
+    && order.status !== 'cancelled'
   ));
   const paymentTotals = { cash: 0, QRIS: 0 };
   const products = new Map();
