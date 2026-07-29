@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -26,6 +26,8 @@ test('backup is a valid SQLite snapshot and restore preserves the replaced datab
   database = await new SqliteDatabase(databasePath).init();
   database.writeState('outlet:one', { revision: 99 });
   database.close();
+  await writeFile(`${databasePath}-wal`, 'stale wal');
+  await writeFile(`${databasePath}-shm`, 'stale shm');
 
   const restored = await restoreDatabase({
     sourcePath: backupPath,
@@ -36,6 +38,10 @@ test('backup is a valid SQLite snapshot and restore preserves the replaced datab
   assert.equal(database.readState('outlet:one').revision, 7);
   database.close();
   assert.equal((await readFile(restored.previousDatabasePath)).length > 0, true);
+  assert.equal(await readFile(restored.previousSidecarPaths.wal, 'utf8'), 'stale wal');
+  assert.equal(await readFile(restored.previousSidecarPaths.shm, 'utf8'), 'stale shm');
+  await assert.rejects(access(`${databasePath}-wal`));
+  await assert.rejects(access(`${databasePath}-shm`));
   await rm(directory, { recursive: true, force: true });
 });
 
@@ -47,6 +53,7 @@ test('Windows startup task scripts use SYSTEM and never embed an account passwor
   assert.match(install, /New-ScheduledTaskPrincipal[\s\S]*SYSTEM/i);
   assert.match(install, /New-ScheduledTaskTrigger\s+-AtStartup/i);
   assert.match(install, /New-ScheduledTaskTrigger\s+-Daily\s+-At\s+'02:00'/i);
+  assert.match(install, /-Argument\s+"`"\$serverPath`"\s+--production"/i);
   assert.doesNotMatch(install, /-Password|ConvertTo-SecureString/i);
   assert.match(uninstall, /Unregister-ScheduledTask/i);
 });

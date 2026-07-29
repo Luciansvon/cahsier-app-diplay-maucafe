@@ -71,7 +71,8 @@ function updateMutatingButtons() {
       button.disabled = !isConnected || !isTyped;
     } else if (button.id === 'clear-all-outlets-sales-btn') {
       const isTyped = $('#global-danger-confirmation')?.value === 'HAPUS SEMUA';
-      button.disabled = !isConnected || !isTyped;
+      const hasPin = Boolean($('#global-owner-pin')?.value.trim());
+      button.disabled = !isConnected || !isTyped || !hasPin;
     } else {
       button.disabled = !isConnected;
     }
@@ -791,13 +792,22 @@ $('#report-date')?.addEventListener('change', (event) => {
 
 $('#danger-confirmation')?.addEventListener('input', updateMutatingButtons);
 $('#global-danger-confirmation')?.addEventListener('input', updateMutatingButtons);
+$('#global-owner-pin')?.addEventListener('input', updateMutatingButtons);
 
 $('#clear-all-outlets-sales-btn')?.addEventListener('click', async () => {
   if ($('#global-danger-confirmation').value !== 'HAPUS SEMUA') return;
   if (!window.confirm('Hapus SELURUH riwayat penjualan di SEMUA OUTLET? Data tidak bisa dikembalikan.')) return;
   try {
-    await request('/api/owner/clear-all-outlets-sales', { method: 'POST', body: JSON.stringify({}) });
+    await request('/api/owner/clear-all-outlets-sales', {
+      method: 'POST',
+      body: JSON.stringify({
+        confirmation: 'HAPUS SEMUA',
+        currentPin: $('#global-owner-pin').value,
+        requestId: 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10),
+      }),
+    });
     $('#global-danger-confirmation').value = '';
+    $('#global-owner-pin').value = '';
     updateMutatingButtons();
     toast('Seluruh riwayat penjualan SEMUA outlet telah dibersihkan.');
     await loadMultiSummary();
@@ -1051,8 +1061,8 @@ function parseCsvOrTsv(text) {
   if (!text) return [];
   let content = text.replace(/^\uFEFF/, '').trim();
   if (!content) return [];
-  const isTsv = content.includes('\t') && !content.includes(',');
-  const delimiter = isTsv ? '\t' : ',';
+  const firstLine = content.split(/\r?\n/, 1)[0];
+  const delimiter = firstLine.includes('\t') ? '\t' : ',';
 
   const lines = [];
   let currentLine = [];

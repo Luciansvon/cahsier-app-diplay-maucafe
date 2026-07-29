@@ -32,11 +32,12 @@ Perangkat satu jaringan membuka `http://<IP-PC-SERVER>:3000`. Untuk akses dari l
 1. Login memakai username Karyawan + PIN. PIN Admin outlet lama tetap tersedia sebagai akses bootstrap.
 2. Buka shift dan masukkan saldo awal.
 3. Buat order Tunai/QRIS. Server menentukan harga, HPP snapshot, total, nomor antrean, shift, dan identitas Karyawan.
-4. Panggil/recall/selesaikan order.
+4. Panggil/recall order, lalu selesaikan setelah statusnya `ready`.
 5. Catat kas masuk/keluar, setoran, biaya, dan pergerakan cup.
 6. Tutup shift memakai kas fisik. Selisih wajib memiliki alasan.
 
 Order ditolak jika tidak ada shift aktif. Pembatalan memerlukan sesi Kasir/Owner dan approval Owner; histori cancelled tidak dihapus.
+Ringkasan Kasir hanya menampilkan jumlah produk dan transaksi harian, tanpa omzet, rincian metode pembayaran, HPP, atau profit.
 
 ### Mitra
 
@@ -59,6 +60,7 @@ Owner dapat melihat total seluruh jaringan dan kartu ringkasan per Mitra. Setiap
 Owner juga dapat membuat Mitra, menyetujui outlet yang diajukan Mitra, melihat audit, mengelola master menu global, HPP, pemakaian cup, foto produk, media, PIN, laporan, dan operasi berisiko. Outlet lama tidak ditugaskan ke Mitra melalui flow operasional.
 
 Perubahan master menu disimpan satu kali dan disinkronkan ke seluruh outlet aktif/pending dalam transaksi SQLite. Outlet yang dibuat kemudian mewarisi master menu terbaru.
+Mitra hanya dapat mematikan ketersediaan produk per outlet. Produk yang dimatikan global oleh Owner tidak dapat dinyalakan kembali oleh Mitra.
 
 ## Display TV
 
@@ -99,7 +101,7 @@ Migrasi hanya berjalan sekali dan tidak menghapus file JSON sumber. `data/outlet
 
 PIN tidak disimpan plaintext dan wajib unik secara global untuk Owner, Admin outlet, Mitra, serta Karyawan. Server menolak PIN baru yang sudah dipakai tanpa menyebut pemiliknya. Jika data lama memiliki PIN yang cocok ke lebih dari satu credential, login terkait ditolak sampai Owner merotasi salah satu PIN.
 
-Credential demo `1111`/`1234` hanya untuk data demo dan ditolak saat `NODE_ENV=production`. Ganti PIN sebelum dipakai di jaringan nyata.
+Credential demo `1111`/`1234` hanya untuk data demo dan ditolak saat `NODE_ENV=production` atau server dijalankan memakai flag `--production`. Ganti PIN sebelum dipakai di jaringan nyata.
 
 ## Backup dan restore
 
@@ -116,7 +118,7 @@ Restore harus dijalankan saat server berhenti:
 npm run db:restore -- --source D:\MAUCAFE-Backup\maucafe-<timestamp>.sqlite --database data\maucafe.sqlite
 ```
 
-Restore memeriksa integritas dan schema MAUCAFE, lalu menyimpan database lama sebagai `maucafe.sqlite.before-restore-<timestamp>`.
+Restore memeriksa integritas dan schema MAUCAFE, memindahkan database lama beserta sidecar `-wal`/`-shm` ke nama bertimestamp, lalu memasang backup tanpa membawa WAL lama.
 
 Rekomendasi operasional:
 
@@ -133,7 +135,7 @@ Jalankan PowerShell sebagai Administrator:
 powershell -ExecutionPolicy Bypass -File .\scripts\install-windows-service.ps1
 ```
 
-Script membuat task server saat startup dan backup SQLite harian pukul 02:00 memakai akun `SYSTEM`, tanpa password plaintext.
+Script membuat task server saat startup memakai flag `--production` dan backup SQLite harian pukul 02:00 memakai akun `SYSTEM`, tanpa password plaintext.
 
 Hapus task:
 
@@ -165,6 +167,8 @@ APK membundel Launcher, Kasir, Mitra, dan Owner. Backend serta database tetap be
 ## Dokumentasi
 
 - `docs/ARCHITECTURE.md`
+- `docs/CLIENT_REVISIONS.md`
 - `docs/ERROR_SOLUTIONS.md`
-- `docs/WORKLOG.md`
-- `docs/superpowers/plans/2026-07-27-maucafe-franchise-operations.md`
+- `docs/MODUL_PANDUAN_DEMO.md`
+
+Dokumen rencana, audit, dan worklog lama dipindahkan ke `docs/archive/project-history/`. Isinya hanya riwayat dan bukan requirement aktif.

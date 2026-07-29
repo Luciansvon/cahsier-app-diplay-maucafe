@@ -197,4 +197,15 @@ test('rejects unsafe operational and inventory values', () => {
     }, NOW),
     /alasan/i,
   );
+  assert.throws(
+    () => recordInventoryMovement(opened.state, {
+      type: 'received',
+      quantity: 1,
+      shiftId: 'shift-tidak-ada',
+      actorType: 'employee',
+      actorId: actor().employeeId,
+      actorName: actor().employeeName,
+    }, NOW),
+    /shift tidak ditemukan/i,
+  );
 });

@@ -187,6 +187,10 @@ test('Mitra can update only its own Employee and PIN remains hashed', () => {
   assert.equal(updated.user.active, false);
   assert.equal('pin' in updated.user, false);
   assert.equal(typeof updated.user.pinHash.hash, 'string');
+  assert.throws(() => updateEmployee(employee.registry, employee.user.id, {
+    partnerId: first.partner.id,
+    active: 'false',
+  }), /boolean/i);
   assert.throws(() => updateEmployee(updated.registry, employee.user.id, {
     partnerId: second.partner.id,
     active: true,

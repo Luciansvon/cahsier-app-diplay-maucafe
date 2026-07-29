@@ -200,17 +200,14 @@ function cashierState(state) {
     currentShift: structuredClone((state.shifts ?? []).find((shift) => shift.status === 'open') ?? null),
     dailySummary: {
       businessDate,
-      revenue: daily.revenue,
-      received: daily.grandRevenue,
       transactionCount: daily.transactionCount,
-      paymentTotals: structuredClone(daily.paymentTotals),
+      totalQuantity: daily.products.reduce((sum, product) => sum + product.quantity, 0),
+      productCount: daily.products.filter((product) => product.quantity > 0).length,
       products: daily.products.map((product) => ({
         productId: product.productId,
         productName: product.productName,
         category: product.category,
-        unitPrice: product.unitPrice,
         quantity: product.quantity,
-        revenue: product.revenue,
         transactionCount: product.transactionCount,
         avgQtyPerTrx: product.avgQtyPerTrx,
       })),
@@ -245,16 +242,26 @@ function cookies(request) {
   }));
 }
 
-async function readJson(request, maxBytes = 35_000_000) {
-  let body = '';
+async function readJson(request, maxBytes = 1_048_576) {
+  const declaredLength = Number(request.headers['content-length']);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    const error = new Error('Ukuran payload terlalu besar');
+    error.status = 413;
+    throw error;
+  }
+  const chunks = [];
+  let totalBytes = 0;
   for await (const chunk of request) {
-    body += chunk;
-    if (body.length > maxBytes) {
-      const error = new Error('Ukuran file terlalu besar');
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += buffer.length;
+    if (totalBytes > maxBytes) {
+      const error = new Error('Ukuran payload terlalu besar');
       error.status = 413;
       throw error;
     }
+    chunks.push(buffer);
   }
+  const body = Buffer.concat(chunks, totalBytes).toString('utf8');
   if (!body) return {};
   try {
     return JSON.parse(body);
@@ -456,7 +463,7 @@ export async function createQueueServer({
   dataDir = join(PROJECT_DIR, 'data'),
   publicDir = join(PROJECT_DIR, 'public'),
   initialState = createInitialState(),
-  production = process.env.NODE_ENV === 'production',
+  production = process.env.NODE_ENV === 'production' || process.argv.includes('--production'),
 } = {}) {
   const outletsFilePath = join(dataDir, 'outlets.json');
   // Sanitize the only supported legacy plaintext credential before copying
@@ -588,8 +595,7 @@ export async function createQueueServer({
     }
   }
 
-  function ownerSession(request) {
-    const token = bearerToken(request) || cookies(request).owner_session;
+  function ownerSessionToken(token) {
     if (!token) return null;
     const expiresAt = ownerSessions.get(token);
     if (!expiresAt || expiresAt <= Date.now()) {
@@ -599,8 +605,11 @@ export async function createQueueServer({
     return token;
   }
 
-  function adminSessionDetails(request, outletId) {
-    const token = bearerToken(request) || cookies(request)[`admin_session_${outletId}`];
+  function ownerSession(request) {
+    return ownerSessionToken(bearerToken(request) || cookies(request).owner_session);
+  }
+
+  function adminSessionTokenDetails(token, outletId) {
     if (!token) return null;
     const session = adminSessions.get(token);
     if (!session || session.expiresAt <= Date.now() || session.outletId !== outletId) {
@@ -627,6 +636,13 @@ export async function createQueueServer({
       }
     }
     return { token, ...session };
+  }
+
+  function adminSessionDetails(request, outletId) {
+    return adminSessionTokenDetails(
+      bearerToken(request) || cookies(request)[`admin_session_${outletId}`],
+      outletId,
+    );
   }
 
   function adminSession(request, outletId) {
@@ -696,7 +712,10 @@ export async function createQueueServer({
 
   function revokeAdminSessions(outletId) {
     for (const [token, session] of adminSessions) {
-      if (session.outletId === outletId) adminSessions.delete(token);
+      if (session.outletId === outletId) {
+        adminSessions.delete(token);
+        closeSessionStreams('admin', token);
+      }
     }
   }
 
@@ -804,10 +823,55 @@ export async function createQueueServer({
     return total;
   }
 
+  function sseResponse(client) {
+    return client?.response ?? client;
+  }
+
+  function closeSseClient(clients, client) {
+    clients.delete(client);
+    const response = sseResponse(client);
+    if (!response.destroyed && !response.writableEnded) response.end();
+  }
+
+  function closeSessionStreams(sessionType, token = null) {
+    for (const map of [adminClientsMap, ownerClientsMap]) {
+      for (const clients of map.values()) {
+        for (const client of clients) {
+          if (client?.sessionType !== sessionType) continue;
+          if (token && client.token !== token) continue;
+          closeSseClient(clients, client);
+        }
+      }
+    }
+  }
+
+  function registerProtectedSse(clients, response, {
+    sessionType,
+    token,
+    isAuthorized,
+  }) {
+    const client = { response, sessionType, token, isAuthorized };
+    clients.add(client);
+    return client;
+  }
+
+  function writeSse(clients, client, message) {
+    if (client?.isAuthorized && !client.isAuthorized()) {
+      closeSseClient(clients, client);
+      return;
+    }
+    const response = sseResponse(client);
+    if (response.destroyed || response.writableEnded) {
+      clients.delete(client);
+      return;
+    }
+    response.write(message);
+  }
+
   function broadcastGroup(clients, payload) {
     if (!clients) return;
     const message = `data: ${JSON.stringify(payload)}\n\n`;
-    for (const client of clients) client.write(message);
+    for (const client of clients) writeSse(clients, client, message);
   }
 
   function broadcast(outletId, state) {
@@ -1322,13 +1386,22 @@ export async function createQueueServer({
           sendJson(response, 400, { error: 'Status aktif produk harus berupa boolean.' });
           return;
         }
+        const masterProduct = registry.masterProducts.find((product) => product.id === productId);
+        if (!masterProduct) {
+          sendJson(response, 404, { error: 'Produk master tidak ditemukan.' });
+          return;
+        }
+        if (body.active && masterProduct.active === false) {
+          sendJson(response, 409, { error: 'Produk sedang dinonaktifkan oleh Owner.' });
+          return;
+        }
         const { state: nextState, output } = await mutate(outletId, (current) => {
           const products = Array.isArray(current.products) ? [...current.products] : [];
           const index = products.findIndex((p) => p.id === productId);
           if (index === -1) throw new Error('Produk tidak ditemukan');
           products[index] = {
             ...products[index],
-            active: body.active,
+            active: masterProduct.active !== false && body.active,
             disabledByPartner: !body.active,
           };
           return {
@@ -1390,7 +1463,7 @@ export async function createQueueServer({
           sendJson(response, 401, { error: 'Sesi Owner diperlukan.' });
           return;
         }
-        const body = await readJson(request);
+        const body = await readJson(request, 1_048_576);
         const requestId = String(body?.requestId ?? '').trim();
         if (!requestId || requestId.length < 16 || requestId.length > 100 || !/^[a-zA-Z0-9_-]+$/.test(requestId)) {
           sendJson(response, 400, { error: 'requestId wajib 16-100 karakter aman' });
@@ -1484,7 +1557,7 @@ export async function createQueueServer({
           sendJson(response, 401, { error: 'Sesi Owner diperlukan.' });
           return;
         }
-        const body = await readJson(request);
+        const body = await readJson(request, 1_048_576);
         const requestId = String(body?.requestId ?? '').trim();
         if (!requestId || requestId.length < 16 || requestId.length > 100 || !/^[a-zA-Z0-9_-]+$/.test(requestId)) {
           sendJson(response, 400, { error: 'requestId wajib 16-100 karakter aman' });
@@ -1506,6 +1579,10 @@ export async function createQueueServer({
           sendJson(response, 400, { error: 'Perubahan massal hanya mengizinkan kategori atau status aktif' });
           return;
         }
+        if ('active' in changes && typeof changes.active !== 'boolean') {
+          sendJson(response, 400, { error: 'Status aktif produk harus berupa boolean.' });
+          return;
+        }
 
         let updatedCount = 0;
         await mutateMasterProducts(
@@ -1517,7 +1594,7 @@ export async function createQueueServer({
               const prod = state.products.find((p) => p.id === id);
               if (prod) {
                 if ('category' in changes) prod.category = String(changes.category).trim();
-                if ('active' in changes) prod.active = Boolean(changes.active);
+                if ('active' in changes) prod.active = changes.active;
                 updatedCount++;
               }
             }
@@ -1677,6 +1754,8 @@ export async function createQueueServer({
           adminSessions.delete(token);
           ownerSessions.delete(token);
           partnerSessions.delete(token);
+          closeSessionStreams('admin', token);
+          closeSessionStreams('owner', token);
         }
         sendJson(response, 200, { ok: true });
         return;
@@ -1705,7 +1784,10 @@ export async function createQueueServer({
 
       if (request.method === 'POST' && path === '/api/owner/logout') {
         const token = ownerSession(request);
-        if (token) ownerSessions.delete(token);
+        if (token) {
+          ownerSessions.delete(token);
+          closeSessionStreams('owner', token);
+        }
         sendJson(response, 200, { ok: true }, {
           'set-cookie': 'owner_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0',
         });
@@ -2041,7 +2123,10 @@ export async function createQueueServer({
 
       if (request.method === 'POST' && subPath === '/admin/logout') {
         const token = adminSession(request, outletId);
-        if (token) adminSessions.delete(token);
+        if (token) {
+          adminSessions.delete(token);
+          closeSessionStreams('admin', token);
+        }
         sendJson(response, 200, { ok: true }, {
           'set-cookie': `admin_session_${outletId}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`,
         });
@@ -2092,7 +2177,9 @@ export async function createQueueServer({
       }
 
       if (request.method === 'GET' && subPath === '/admin/events') {
-        if (!adminSession(request, outletId) && !ownerSession(request)) {
+        const adminToken = adminSession(request, outletId);
+        const ownerToken = ownerSession(request);
+        if (!adminToken && !ownerToken) {
           sendJson(response, 401, { error: 'Sesi Admin berakhir.' });
           return;
         }
@@ -2104,9 +2191,19 @@ export async function createQueueServer({
           ...securityHeaders('text/event-stream'),
         });
         const clients = adminClientsMap.get(outletId);
-        clients.add(response);
+        const client = adminToken
+          ? registerProtectedSse(clients, response, {
+              sessionType: 'admin',
+              token: adminToken,
+              isAuthorized: () => Boolean(adminSessionTokenDetails(adminToken, outletId)),
+            })
+          : registerProtectedSse(clients, response, {
+              sessionType: 'owner',
+              token: ownerToken,
+              isAuthorized: () => Boolean(ownerSessionToken(ownerToken)),
+            });
         response.write(`data: ${JSON.stringify({ ...cashierState(state), outletInfo: { id: outlet.id, name: outlet.name } })}\n\n`);
-        request.on('close', () => clients.delete(response));
+        request.on('close', () => clients.delete(client));
         return;
       }
 
@@ -2125,7 +2222,8 @@ export async function createQueueServer({
       }
 
       if (request.method === 'GET' && subPath === '/owner/events') {
-        if (!ownerSession(request)) {
+        const ownerToken = ownerSession(request);
+        if (!ownerToken) {
           sendJson(response, 401, { error: 'Sesi berakhir, masukkan PIN lagi.' });
           return;
         }
@@ -2137,9 +2235,13 @@ export async function createQueueServer({
           ...securityHeaders('text/event-stream'),
         });
         const clients = ownerClientsMap.get(outletId);
-        clients.add(response);
+        const client = registerProtectedSse(clients, response, {
+          sessionType: 'owner',
+          token: ownerToken,
+          isAuthorized: () => Boolean(ownerSessionToken(ownerToken)),
+        });
         response.write(`data: ${JSON.stringify({ ...ownerState(state), outletInfo: { id: outlet.id, name: outlet.name } })}\n\n`);
-        request.on('close', () => clients.delete(response));
+        request.on('close', () => clients.delete(client));
         return;
       }
 
@@ -2356,7 +2458,9 @@ export async function createQueueServer({
 
       const orderAction = subPath.match(/^\/orders\/([^/]+)\/(call|complete)$/);
       if (request.method === 'POST' && orderAction) {
-        if (!adminSession(request, outletId) && !ownerSession(request)) {
+        const admin = adminSessionDetails(request, outletId);
+        const ownerToken = ownerSession(request);
+        if (!admin && !ownerToken) {
           sendJson(response, 401, { error: 'Login Admin diperlukan.' });
           return;
         }
@@ -2364,18 +2468,31 @@ export async function createQueueServer({
         const [, orderId, action] = orderAction;
         const actions = { call: callOrder, complete: completeOrder };
         const { state: nextState, output } = await mutate(outletId, (current) => actions[action](current, orderId));
+        database.appendAudit({
+          actorType: admin ? 'employee' : 'owner',
+          actorId: admin?.userId ?? 'owner',
+          action: `order.${action}`,
+          outletId,
+          metadata: {
+            orderId: output.order.id,
+            queueNumber: output.order.queueNumber,
+            status: output.order.status,
+            ...(action === 'call' ? { callCount: output.order.callCount } : {}),
+          },
+        });
         sendJson(response, 200, { state: cashierState(nextState), order: cashierOrder(output.order) });
         return;
       }
 
       const cancelRoute = subPath.match(/^\/orders\/([^/]+)\/cancel$/);
       if (request.method === 'POST' && cancelRoute) {
-        if (!adminSession(request, outletId) && !ownerSession(request)) {
+        const admin = adminSessionDetails(request, outletId);
+        const ownerToken = ownerSession(request);
+        if (!admin && !ownerToken) {
           sendJson(response, 401, { error: 'Login Admin diperlukan.' });
           return;
         }
         const body = await readJson(request);
-        const ownerToken = ownerSession(request);
         if (!ownerToken) {
           const approvalKey = `owner-approval:${requestIp(request)}`;
           const approvalStatus = ownerLoginLimiter.status(approvalKey);
@@ -2395,6 +2512,18 @@ export async function createQueueServer({
           cancelledBy: ownerToken ? 'owner' : 'admin',
           approvedBy: 'owner',
         }));
+        database.appendAudit({
+          actorType: admin ? 'employee' : 'owner',
+          actorId: admin?.userId ?? 'owner',
+          action: 'order.cancel',
+          outletId,
+          metadata: {
+            orderId: output.order.id,
+            queueNumber: output.order.queueNumber,
+            reason: output.order.cancelReason,
+            approvedBy: output.order.approvedBy,
+          },
+        });
         sendJson(response, 200, { state: cashierState(nextState), order: cashierOrder(output.order) });
         return;
       }
@@ -2477,6 +2606,7 @@ export async function createQueueServer({
           return output;
         });
         ownerSessions.clear();
+        closeSessionStreams('owner');
         const updatedTargetState = ownerState(stores.get(outletId).store.get());
         sendJson(response, 200, { state: updatedTargetState, changed: true });
         return;
@@ -2822,9 +2952,25 @@ export async function createQueueServer({
   });
 
   const keepAlive = setInterval(() => {
+    const now = Date.now();
+    for (const [token, expiresAt] of ownerSessions) {
+      if (expiresAt <= now) {
+        ownerSessions.delete(token);
+        closeSessionStreams('owner', token);
+      }
+    }
+    for (const [token, session] of adminSessions) {
+      if (session.expiresAt <= now) {
+        adminSessions.delete(token);
+        closeSessionStreams('admin', token);
+      }
+    }
+    for (const [token, session] of partnerSessions) {
+      if (session.expiresAt <= now) partnerSessions.delete(token);
+    }
     for (const map of [displayClientsMap, adminClientsMap, ownerClientsMap]) {
       for (const clients of map.values()) {
-        for (const client of clients) client.write(': keep-alive\n\n');
+        for (const client of clients) writeSse(clients, client, ': keep-alive\n\n');
       }
     }
   }, 20_000);
@@ -2847,7 +2993,7 @@ export async function createQueueServer({
       clearInterval(keepAlive);
       for (const map of [displayClientsMap, adminClientsMap, ownerClientsMap]) {
         for (const clients of map.values()) {
-          for (const client of clients) client.end();
+          for (const client of clients) sseResponse(client).end();
         }
       }
       return new Promise((resolve, reject) => server.close((error) => {

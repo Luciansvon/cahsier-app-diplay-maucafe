@@ -170,6 +170,13 @@ test('Owner bulk API endpoints enforce auth, dryRun, all-or-nothing, and idempot
 
   assert.equal(patchRes.response.status, 200);
   assert.equal(patchRes.payload.updatedCount, 1);
+
+  const invalidBoolean = await jsonRequest(`${baseUrl}/api/owner/products/bulk`, 'PATCH', {
+    requestId: 'req_test_patch_invalid_boolean',
+    productIds: [addedTeh.id],
+    changes: { active: 'false' },
+  }, { Cookie: ownerCookie });
+  assert.equal(invalidBoolean.response.status, 400);
 });
 
 test('POST /api/owner/clear-all-outlets-sales requires phrase HAPUS SEMUA and Owner PIN', async (t) => {

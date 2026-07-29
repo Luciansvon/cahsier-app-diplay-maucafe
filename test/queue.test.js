@@ -154,7 +154,9 @@ test('orders can be completed or cancelled', () => {
   const first = createOrder(state, { items: [{ productId: 'kopi-susu', quantity: 1 }], paymentMethod: 'cash' }, NOW);
   const second = createOrder(first.state, { items: [{ productId: 'kopi-susu', quantity: 1 }], paymentMethod: 'QRIS' }, NOW);
 
-  state = completeOrder(second.state, first.order.id, NOW).state;
+  assert.throws(() => completeOrder(second.state, first.order.id, NOW), /panggil/i);
+  state = callOrder(second.state, first.order.id, NOW).state;
+  state = completeOrder(state, first.order.id, NOW).state;
   state = cancelOrder(state, second.order.id, { reason: 'Salah input', cancelledBy: 'admin', approvedBy: 'owner' }, NOW).state;
 
   assert.equal(state.orders[0].status, 'completed');
@@ -183,7 +185,8 @@ test('cancellation requires a reason and cannot cancel a completed order', () =>
   const created = createOrder(state, { items: [{ productId: 'kopi-susu', quantity: 1 }], paymentMethod: 'cash' }, NOW);
   assert.throws(() => cancelOrder(created.state, created.order.id, {}, NOW), /alasan/i);
 
-  state = completeOrder(created.state, created.order.id, NOW).state;
+  state = callOrder(created.state, created.order.id, NOW).state;
+  state = completeOrder(state, created.order.id, NOW).state;
   assert.throws(() => cancelOrder(state, created.order.id, { reason: 'Tes' }, NOW), /tidak dapat dibatalkan/i);
 });
 
@@ -191,7 +194,8 @@ test('reset cancels active orders and preserves closed sales history', () => {
   let state = stateWithMenu();
   const first = createOrder(state, { items: [{ productId: 'kopi-susu', quantity: 1 }], paymentMethod: 'cash' }, NOW);
   const second = createOrder(first.state, { items: [{ productId: 'kopi-susu', quantity: 1 }], paymentMethod: 'QRIS' }, NOW);
-  state = completeOrder(second.state, first.order.id, NOW).state;
+  state = callOrder(second.state, first.order.id, NOW).state;
+  state = completeOrder(state, first.order.id, NOW).state;
   state = callOrder(state, second.order.id, NOW).state;
 
   state = resetQueue(state, '2026-07-23T02:05:00.000Z');
@@ -218,6 +222,10 @@ test('products can be added, updated, and removed without mutating previous stat
   assert.equal(updated.product.cost, 8000);
   assert.equal(updated.product.cupUsage, 2);
   assert.equal(updated.product.active, false);
+  assert.throws(
+    () => updateProduct(added.state, added.product.id, { active: 'false' }),
+    /boolean/i,
+  );
   assert.equal(removed.state.products.length, 0);
   assert.equal(removed.product.id, added.product.id);
   assert.throws(() => removeProduct(removed.state, added.product.id), /tidak ditemukan/i);
@@ -280,10 +288,12 @@ test('verifies owner PIN and purges old closed orders', () => {
 
   let state = stateWithMenu();
   const oldOrder = createOrder(state, { items: [{ productId: 'kopi-susu', quantity: 1 }], paymentMethod: 'cash' }, '2026-05-01T00:00:00.000Z');
-  state = completeOrder(oldOrder.state, oldOrder.order.id, '2026-05-01T00:01:00.000Z').state;
+  state = callOrder(oldOrder.state, oldOrder.order.id, '2026-05-01T00:00:30.000Z').state;
+  state = completeOrder(state, oldOrder.order.id, '2026-05-01T00:01:00.000Z').state;
 
   const recentOrder = createOrder(state, { items: [{ productId: 'kopi-susu', quantity: 1 }], paymentMethod: 'cash' }, NOW);
-  state = completeOrder(recentOrder.state, recentOrder.order.id, NOW).state;
+  state = callOrder(recentOrder.state, recentOrder.order.id, NOW).state;
+  state = completeOrder(state, recentOrder.order.id, NOW).state;
 
   const purged = purgeOldOrders(state, 30, NOW);
   assert.equal(purged.orders.length, 1);
@@ -293,7 +303,8 @@ test('verifies owner PIN and purges old closed orders', () => {
 test('clears all orders and resets queue completely', () => {
   let state = stateWithMenu();
   const created = createOrder(state, { items: [{ productId: 'kopi-susu', quantity: 2 }], paymentMethod: 'cash' }, NOW);
-  state = completeOrder(created.state, created.order.id, NOW).state;
+  state = callOrder(created.state, created.order.id, NOW).state;
+  state = completeOrder(state, created.order.id, NOW).state;
 
   const cleared = clearAllOrders(state);
   assert.equal(cleared.orders.length, 0);

@@ -195,13 +195,15 @@ export function recordInventoryMovement(currentState, input, now = new Date().to
   if (!INVENTORY_TYPES.has(type)) throw new Error('Tipe pergerakan cup tidak valid');
   const reason = optionalText(input?.reason, 'Alasan', 300);
   if (REASON_REQUIRED_TYPES.has(type) && !reason) throw new Error('Alasan wajib diisi');
+  const shiftId = input?.shiftId ? text(input.shiftId, 'Shift', 100) : null;
+  if (shiftId) findShift(state, shiftId);
   const movement = {
     id: randomUUID(),
     type,
     quantity: quantity(input?.quantity, { allowNegative: type === 'adjustment' }),
     reason,
     businessDate: jakartaDate(now),
-    shiftId: input?.shiftId ? text(input.shiftId, 'Shift', 100) : null,
+    shiftId,
     actor: {
       type: text(input?.actorType, 'Tipe aktor', 30),
       id: text(input?.actorId, 'ID aktor', 100),

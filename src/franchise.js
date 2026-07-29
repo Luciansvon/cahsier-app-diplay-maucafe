@@ -29,6 +29,11 @@ function ensureUniqueUsername(registry, value) {
   return normalized;
 }
 
+function boolean(value, label) {
+  if (typeof value !== 'boolean') throw new Error(`${label} harus berupa boolean`);
+  return value;
+}
+
 function slugPart(value) {
   return String(value ?? '')
     .normalize('NFKD')
@@ -190,7 +195,7 @@ export function updateEmployee(currentRegistry, employeeId, input) {
     throw new Error('Karyawan bukan bagian dari Mitra ini');
   }
   if ('name' in input) user.name = text(input.name, 'Nama Karyawan', 120);
-  if ('active' in input) user.active = Boolean(input.active);
+  if ('active' in input) user.active = boolean(input.active, 'Status aktif Karyawan');
   if (input.pin !== undefined && String(input.pin).trim()) user.pinHash = createPinHash(input.pin);
   return { registry, user };
 }

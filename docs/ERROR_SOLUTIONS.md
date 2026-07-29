@@ -855,3 +855,212 @@ Pada halaman `/outlet/:outletId/display`, gambar iklan promosi terpotong di bagi
 - `git diff --check`: PASS (Tanpa whitespace error)
 - Visual Smoke Test (1920x1080, 1366x768, 1280x720): PASS (Seluruh teks/harga terlihat penuh, aspect ratio tidak terdistorsi, blurred backdrop aktif tanpa menutupi foreground, proporsi 34% antrean dan 66% promo tetap presisi).
 - Waktu: 2026-07-28T13:30:00.000Z
+
+## ERR-039 - Stream SSE tetap menerima data setelah logout atau session dicabut
+
+### Kondisi/gejala
+
+Owner/Admin yang sudah logout masih dapat menerima pembaruan melalui koneksi SSE yang sebelumnya terbuka.
+
+### Root cause
+
+Server hanya memeriksa session saat stream dibuat. Broadcast dan keepalive tidak memvalidasi token lagi, sedangkan logout hanya menghapus token dari map session.
+
+### Solusi
+
+Client SSE terlindungi sekarang menyimpan jenis session dan token. Server memvalidasi ulang sebelum broadcast/keepalive serta menutup stream saat logout, rotasi PIN, revoke session, atau session kedaluwarsa. Map session kedaluwarsa juga dibersihkan berkala.
+
+### Bukti verifikasi aktual
+
+- Regression test `Owner SSE ditutup setelah logout` dan `Admin SSE ditutup setelah logout`: PASS.
+
+## ERR-040 - Mitra dapat mengaktifkan produk yang dinonaktifkan Owner
+
+### Kondisi/gejala
+
+Produk master yang sudah dinonaktifkan Owner dapat kembali tampil aktif pada outlet melalui endpoint Mitra.
+
+### Root cause
+
+Endpoint outlet langsung menulis nilai `active` tanpa menggabungkannya dengan status master product.
+
+### Solusi
+
+Server menolak aktivasi ketika master product nonaktif dan menghitung status efektif sebagai `master.active && requestedActive`. Mitra tetap boleh menonaktifkan produk aktif untuk outletnya sendiri.
+
+### Bukti verifikasi aktual
+
+- Regression test `Mitra tidak dapat mengaktifkan produk master yang dinonaktifkan Owner`: PASS.
+
+## ERR-041 - Kasir menerima nominal penjualan dan total metode pembayaran
+
+### Kondisi/gejala
+
+Payload ringkasan Kasir berisi pendapatan, total diterima, harga, dan pembagian metode pembayaran yang seharusnya terbatas untuk Owner/Mitra.
+
+### Root cause
+
+Endpoint Kasir memakai bentuk ringkasan finansial yang sama dengan role manajemen.
+
+### Solusi
+
+Ringkasan Kasir sekarang hanya memuat business date, jumlah transaksi, jumlah produk terjual, jumlah menu, serta statistik kuantitas per produk. Kartu UI Kasir disesuaikan agar tidak menampilkan nominal finansial.
+
+### Bukti verifikasi aktual
+
+- Regression test `Kasir hanya menerima ringkasan kuantitas tanpa data finansial`: PASS.
+- Contract test UI memastikan label pendapatan/metode pembayaran tidak ada: PASS.
+
+## ERR-042 - Tombol bersihkan seluruh outlet selalu gagal
+
+### Kondisi/gejala
+
+Tombol bahaya Owner mengirim body kosong, sedangkan server mewajibkan frasa konfirmasi dan PIN Owner aktif.
+
+### Root cause
+
+Form frontend belum mengikuti kontrak endpoint clear-all terbaru.
+
+### Solusi
+
+UI sekarang meminta frasa konfirmasi dan PIN Owner, memeriksa koneksi, mengirim `confirmation`, `currentPin`, dan `requestId`, lalu membersihkan field PIN setelah berhasil.
+
+### Bukti verifikasi aktual
+
+- Contract test payload clear-all Owner: PASS.
+
+## ERR-043 - String `"false"` tersimpan sebagai boolean `true`
+
+### Kondisi/gejala
+
+Input API seperti `{ "active": "false" }` dapat mengaktifkan produk atau karyawan karena coercion JavaScript.
+
+### Root cause
+
+Server memakai `Boolean(value)` dan hanya memeriksa keberadaan field, bukan tipe boolean asli.
+
+### Solusi
+
+Update produk, bulk update, dan status karyawan sekarang menerima `true`/`false` literal saja; tipe lain ditolak dengan validation error.
+
+### Bukti verifikasi aktual
+
+- Regression test strict boolean pada produk, bulk product, dan karyawan: PASS.
+
+## ERR-044 - Mutasi inventory menerima `shiftId` palsu
+
+### Kondisi/gejala
+
+Ledger inventory dapat merujuk ke ID shift yang tidak pernah ada.
+
+### Root cause
+
+`shiftId` dinormalisasi tetapi tidak diverifikasi terhadap shift outlet.
+
+### Solusi
+
+Jika `shiftId` dikirim, server mencari shift pada outlet yang sama dan menolak mutasi bila tidak ditemukan.
+
+### Bukti verifikasi aktual
+
+- Regression test `mutasi inventory menolak shiftId yang tidak ada`: PASS.
+
+## ERR-045 - Batas impor 1 MB tidak benar-benar diterapkan
+
+### Kondisi/gejala
+
+Endpoint bulk product menerima body lebih dari 1 MB walaupun UI/dokumentasi menyatakan batas 1 MB.
+
+### Root cause
+
+Parser JSON memakai batas default 35 MB dan menghitung panjang karakter, bukan ukuran byte aktual.
+
+### Solusi
+
+Parser memeriksa `Content-Length`, menghitung byte Buffer aktual, memutus request yang melewati batas, dan endpoint bulk memakai batas eksplisit 1.048.576 byte.
+
+### Bukti verifikasi aktual
+
+- Regression test body bulk di atas 1 MB menerima HTTP 413: PASS.
+
+## ERR-046 - Order waiting dapat langsung selesai dan lifecycle tidak masuk audit
+
+### Kondisi/gejala
+
+Order berstatus `waiting` dapat diselesaikan tanpa dipanggil. Aksi call, complete, dan cancel juga tidak tercatat pada audit log.
+
+### Root cause
+
+State transition `completeOrder` tidak membatasi status ke `ready`, dan route aksi order belum menulis audit event.
+
+### Solusi
+
+Urutan status diwajibkan `waiting -> ready -> completed`. Call menyimpan `calledAt`/`callCount`, complete menyimpan `completedAt`, dan call/complete/cancel menulis actor serta metadata ke audit log.
+
+### Bukti verifikasi aktual
+
+- Unit test `order waiting tidak boleh langsung diselesaikan`: PASS.
+- Regression test audit `order.call`, `order.complete`, dan `order.cancel`: PASS.
+
+## ERR-047 - Service Windows dapat berjalan tanpa guard production
+
+### Kondisi/gejala
+
+Scheduled Task menjalankan Node tanpa `NODE_ENV=production`, sehingga validasi credential production dapat terlewati.
+
+### Root cause
+
+Installer service hanya memberi argumen `src/server.js` dan bergantung pada environment parent.
+
+### Solusi
+
+Installer menambahkan argumen `--production`; startup server menganggap argumen tersebut sebagai mode production dan tetap fail closed pada credential tidak aman.
+
+### Bukti verifikasi aktual
+
+- Contract test installer dan production flag: PASS.
+
+## ERR-048 - Restore SQLite mengabaikan file WAL/SHM lama
+
+### Kondisi/gejala
+
+Restore mengganti file database utama tetapi meninggalkan sidecar `-wal`/`-shm`, sehingga state lama berisiko ikut terbaca atau merusak hasil restore.
+
+### Root cause
+
+Script hanya memindahkan dan mengembalikan file `.sqlite`.
+
+### Solusi
+
+Restore sekarang memvalidasi backup sementara, mengarsipkan database aktif beserta WAL/SHM, memvalidasi ulang hasil restore, dan memulihkan semua file lama jika proses gagal.
+
+### Bukti verifikasi aktual
+
+- Test restore dengan stale WAL/SHM memastikan sidecar diarsipkan dan tidak tertinggal: PASS.
+
+## ERR-049 - Detail error baris impor hilang dan TSV salah dideteksi
+
+### Kondisi/gejala
+
+API client membuang `rowErrors` dari respons bulk dan file TSV dapat salah dianggap CSV jika isi data mengandung koma.
+
+### Root cause
+
+Error wrapper hanya mempertahankan message/status, sedangkan deteksi delimiter memeriksa seluruh isi file.
+
+### Solusi
+
+API client sekarang meneruskan `rowErrors`. Deteksi delimiter hanya membaca header sehingga koma di nilai data tidak mengubah TSV menjadi CSV.
+
+### Bukti verifikasi aktual
+
+- Contract test `rowErrors` dan deteksi header TSV: PASS.
+
+## Verifikasi batch audit 29 Juli 2026
+
+- Focused regression test: PASS (`54/54`).
+- Full `npm test`: PASS (`125/125`).
+- `npm run build`: PASS (`dist/` berhasil dibuat).
+- Smoke test multi-outlet terisolasi: PASS (auth, isolasi outlet, antrean, display state, dan Owner summary).
+- Browser smoke data terisolasi: PASS (form clear-all meminta frasa + PIN, kartu Kasir hanya kuantitas/transaksi, dan console tanpa error).
+- `git diff --check`: PASS.

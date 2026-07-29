@@ -185,9 +185,8 @@ function renderMediaPlaylist() {
 
 function renderOperations() {
   const summary = state.dailySummary ?? {};
-  if ($('#cashier-daily-revenue')) $('#cashier-daily-revenue').textContent = rupiah(summary.revenue);
-  if ($('#cashier-daily-cash')) $('#cashier-daily-cash').textContent = rupiah(summary.paymentTotals?.cash);
-  if ($('#cashier-daily-qris')) $('#cashier-daily-qris').textContent = rupiah(summary.paymentTotals?.QRIS);
+  if ($('#cashier-daily-quantity')) $('#cashier-daily-quantity').textContent = String(summary.totalQuantity ?? 0);
+  if ($('#cashier-daily-products')) $('#cashier-daily-products').textContent = String(summary.productCount ?? 0);
   if ($('#cashier-daily-transactions')) $('#cashier-daily-transactions').textContent = String(summary.transactionCount ?? 0);
   const current = state.currentShift;
   const shiftStatus = $('#current-shift-label');
@@ -351,9 +350,11 @@ function orderCard(order) {
   const actions = element('div', 'order-actions');
   actions.append(
     actionButton(order.status === 'ready' ? 'Panggil ulang' : 'Panggil', 'primary', () => api(`/orders/${order.id}/call`, { method: 'POST', body: '{}' }).catch(() => {})),
-    actionButton('Selesai', 'success', () => api(`/orders/${order.id}/complete`, { method: 'POST', body: '{}' }).catch(() => {})),
-    actionButton('Batal', 'ghost danger', () => openCancelDialog(order)),
   );
+  if (order.status === 'ready') {
+    actions.append(actionButton('Selesai', 'success', () => api(`/orders/${order.id}/complete`, { method: 'POST', body: '{}' }).catch(() => {})));
+  }
+  actions.append(actionButton('Batal', 'ghost danger', () => openCancelDialog(order)));
   card.append(top, summary, waitNode, actions);
   return card;
 }

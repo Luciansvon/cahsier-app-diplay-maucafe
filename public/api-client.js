@@ -22,6 +22,7 @@ export async function apiRequest(path, options = {}) {
     if (!response.ok) {
       const error = new Error(payload.error || 'Permintaan gagal');
       error.status = response.status;
+      if (Array.isArray(payload.rowErrors)) error.rowErrors = payload.rowErrors;
       throw error;
     }
     return payload;
