@@ -12,7 +12,7 @@ if (-not (Test-Path -LiteralPath $serverPath -PathType Leaf)) {
 
 $action = New-ScheduledTaskAction `
   -Execute $NodePath `
-  -Argument "`"$serverPath`"" `
+  -Argument "`"$serverPath`" --production" `
   -WorkingDirectory $ProjectRoot
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest

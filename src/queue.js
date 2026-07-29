@@ -43,6 +43,11 @@ function requireCupUsage(value) {
   return value;
 }
 
+function requireBoolean(value, label) {
+  if (typeof value !== 'boolean') throw new Error(`${label} harus berupa boolean`);
+  return value;
+}
+
 function findOrder(state, orderId) {
   const order = state.orders.find((item) => item.id === orderId);
   if (!order) throw new Error('Pesanan tidak ditemukan');
@@ -173,6 +178,8 @@ export function callOrder(currentState, orderId, now = new Date().toISOString())
   if (!['waiting', 'ready'].includes(order.status)) throw new Error('Pesanan ini tidak dapat dipanggil');
 
   order.status = 'ready';
+  order.calledAt = now;
+  order.callCount = (order.callCount ?? 0) + 1;
   order.updatedAt = now;
   state.activeCall = {
     orderId: order.id,
@@ -187,8 +194,12 @@ export function callOrder(currentState, orderId, now = new Date().toISOString())
 export function completeOrder(currentState, orderId, now = new Date().toISOString()) {
   const state = clone(currentState);
   const order = findOrder(state, orderId);
-  if (['completed', 'cancelled', 'expired'].includes(order.status)) throw new Error('Pesanan ini sudah ditutup');
+  if (order.status !== 'ready') {
+    if (['completed', 'cancelled', 'expired'].includes(order.status)) throw new Error('Pesanan ini sudah ditutup');
+    throw new Error('Pesanan harus dipanggil sebelum diselesaikan');
+  }
   order.status = 'completed';
+  order.completedAt = now;
   order.updatedAt = now;
   if (state.activeCall?.orderId === order.id) state.activeCall = null;
   return { state: changed(state), order };
@@ -251,7 +262,7 @@ export function updateProduct(currentState, productId, input) {
   if ('price' in input) product.price = requirePrice(input.price);
   if ('cost' in input) product.cost = requireCost(input.cost);
   if ('cupUsage' in input) product.cupUsage = requireCupUsage(input.cupUsage);
-  if ('active' in input) product.active = Boolean(input.active);
+  if ('active' in input) product.active = requireBoolean(input.active, 'Status aktif produk');
   return { state: changed(state), product };
 }
 

@@ -35,6 +35,16 @@ function validateBackup(path) {
   }
 }
 
+async function renameIfExists(source, destination) {
+  try {
+    await rename(source, destination);
+    return true;
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
 export async function restoreDatabase({
   sourcePath,
   databasePath,
@@ -48,18 +58,28 @@ export async function restoreDatabase({
   await mkdir(dirname(target), { recursive: true });
   const temporaryPath = `${target}.restore-${process.pid}.tmp`;
   const previousDatabasePath = `${target}.before-restore-${timestamp(now)}`;
+  const previousSidecarPaths = {
+    wal: `${previousDatabasePath}-wal`,
+    shm: `${previousDatabasePath}-shm`,
+  };
   await copyFile(source, temporaryPath);
-  let movedCurrent = false;
+  validateBackup(temporaryPath);
+  const moved = { database: false, wal: false, shm: false };
   try {
-    await rename(target, previousDatabasePath);
-    movedCurrent = true;
+    moved.database = await renameIfExists(target, previousDatabasePath);
+    moved.wal = await renameIfExists(`${target}-wal`, previousSidecarPaths.wal);
+    moved.shm = await renameIfExists(`${target}-shm`, previousSidecarPaths.shm);
     await rename(temporaryPath, target);
+    validateBackup(target);
   } catch (error) {
     await rm(temporaryPath, { force: true });
-    if (movedCurrent) await rename(previousDatabasePath, target).catch(() => {});
+    await rm(target, { force: true });
+    if (moved.database) await rename(previousDatabasePath, target).catch(() => {});
+    if (moved.wal) await rename(previousSidecarPaths.wal, `${target}-wal`).catch(() => {});
+    if (moved.shm) await rename(previousSidecarPaths.shm, `${target}-shm`).catch(() => {});
     throw error;
   }
-  return { databasePath: target, previousDatabasePath };
+  return { databasePath: target, previousDatabasePath, previousSidecarPaths };
 }
 
 async function main() {

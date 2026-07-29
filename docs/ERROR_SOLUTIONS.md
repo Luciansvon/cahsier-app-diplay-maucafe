@@ -807,3 +807,260 @@ Proses server lokal Node.js di background masih menjalankan instance server lama
 - `node --test test/owner-bulk-products.test.js`: PASS (7/7 tests pass).
 - `npm test`: PASS (116/116 tests pass).
 - Waktu: 2026-07-28T12:46:00.000Z
+
+## UI-DISPLAY-MEDIA-CROP-2026-07-28 - Gambar Iklan Terpotong di Layar Display TV (/outlet/:outletId/display)
+
+### Kondisi/gejala
+
+Pada halaman `/outlet/:outletId/display`, gambar iklan promosi terpotong di bagian kiri dan kanan. Teks atau harga pada gambar 16:9 atau poster menjadi tidak terbaca penuh.
+
+### Root cause
+
+- `public/display.css` memaksa `.promo-image` dan `.promo-video` menggunakan `object-fit: cover`.
+- `public/display.js` menggunakan `cover` sebagai fallback default.
+- Panel promosi TV hanya memiliki 66% lebar layar (panel antrean 34%), sehingga rasio area promo lebih tinggi/sempit daripada gambar standar 16:9.
+- Form upload media Owner dan Mitra menjadikan "Isi layar / crop" (`cover`) sebagai pilihan default.
+- Media lama belum memiliki penanda apakah `crop` benar-benar dipilih oleh pengguna atau hanya berasal dari fallback lama.
+
+### Solusi
+
+- Memperbarui `src/media.js` agar media baru menyimpan `fit: 'contain'` secara default dan `fitVersion: 2`.
+- Memperbarui form upload di `public/owner.html` dan `public/partner.html` dengan opsi `contain` ("Tampilkan penuh") sebagai pilihan pertama/default.
+- Menambahkan element `#promo-backdrop` di `public/display.html` dan CSS `display-media-safe-fit-v2` di `public/display.css` untuk menampilkan blurred backdrop dari gambar yang sama saat gambar ditampilkan dalam mode `contain`.
+- Mengatur `object-fit: contain` pada `.promo-image` di CSS dan `object-fit: cover` pada `.promo-video`.
+- Memperbarui `public/display.js` dengan fungsi `resolvedMediaFit` (mengubah media gambar lama tanpa `fitVersion === 2` menjadi `contain`) dan `setImageBackdrop` untuk mengelola blurred backdrop.
+- Menambahkan listener error gambar pada `promoImage` untuk membersihkan backdrop dan berpindah ke media berikutnya.
+- Naikkan cache key CSS (`display.css?v=5`) dan JS (`display.js?v=5`).
+
+### Kompatibilitas media lama
+
+- Gambar lama (tanpa `fitVersion === 2`) otomatis dirender sebagai `contain` tanpa terpotong.
+- Gambar baru dengan pilihan explicit crop (`fit === 'cover'` dan `fitVersion === 2`) tetap ditampilkan sebagai `cover`.
+- Video tetap mengikuti pilihan `contain` atau `cover` yang tersimpan.
+
+### Regression test
+
+- Dibuat pengujian otomatis di `test/display-media-fit.test.js` untuk memverifikasi:
+  1. Media baru secara default menyimpan `fit: 'contain'` dan `fitVersion: 2`.
+  2. Gambar baru dengan pilihan crop menyimpan `fit: 'cover'` dan `fitVersion: 2`.
+  3. `display.html`, `display.css`, dan `display.js` memuat marker `display-media-safe-fit-v2`, `id="promo-backdrop"`, `v=5`, `blur(26px)`, dan logic fallback `fitVersion !== 2`.
+  4. Form upload Owner dan Mitra memiliki `contain` sebagai opsi pertama.
+
+### Bukti verifikasi aktual
+
+- `node --check public/display.js`: PASS
+- `node --check test/display-media-fit.test.js`: PASS
+- `npm test`: PASS (119 tests passing)
+- `npm run build`: PASS (Aset web dist/ berhasil dibuat)
+- `git diff --check`: PASS (Tanpa whitespace error)
+- Visual Smoke Test (1920x1080, 1366x768, 1280x720): PASS (Seluruh teks/harga terlihat penuh, aspect ratio tidak terdistorsi, blurred backdrop aktif tanpa menutupi foreground, proporsi 34% antrean dan 66% promo tetap presisi).
+- Waktu: 2026-07-28T13:30:00.000Z
+
+## ERR-039 - Stream SSE tetap menerima data setelah logout atau session dicabut
+
+### Kondisi/gejala
+
+Owner/Admin yang sudah logout masih dapat menerima pembaruan melalui koneksi SSE yang sebelumnya terbuka.
+
+### Root cause
+
+Server hanya memeriksa session saat stream dibuat. Broadcast dan keepalive tidak memvalidasi token lagi, sedangkan logout hanya menghapus token dari map session.
+
+### Solusi
+
+Client SSE terlindungi sekarang menyimpan jenis session dan token. Server memvalidasi ulang sebelum broadcast/keepalive serta menutup stream saat logout, rotasi PIN, revoke session, atau session kedaluwarsa. Map session kedaluwarsa juga dibersihkan berkala.
+
+### Bukti verifikasi aktual
+
+- Regression test `Owner SSE ditutup setelah logout` dan `Admin SSE ditutup setelah logout`: PASS.
+
+## ERR-040 - Mitra dapat mengaktifkan produk yang dinonaktifkan Owner
+
+### Kondisi/gejala
+
+Produk master yang sudah dinonaktifkan Owner dapat kembali tampil aktif pada outlet melalui endpoint Mitra.
+
+### Root cause
+
+Endpoint outlet langsung menulis nilai `active` tanpa menggabungkannya dengan status master product.
+
+### Solusi
+
+Server menolak aktivasi ketika master product nonaktif dan menghitung status efektif sebagai `master.active && requestedActive`. Mitra tetap boleh menonaktifkan produk aktif untuk outletnya sendiri.
+
+### Bukti verifikasi aktual
+
+- Regression test `Mitra tidak dapat mengaktifkan produk master yang dinonaktifkan Owner`: PASS.
+
+## ERR-041 - Kasir menerima nominal penjualan dan total metode pembayaran
+
+### Kondisi/gejala
+
+Payload ringkasan Kasir berisi pendapatan, total diterima, harga, dan pembagian metode pembayaran yang seharusnya terbatas untuk Owner/Mitra.
+
+### Root cause
+
+Endpoint Kasir memakai bentuk ringkasan finansial yang sama dengan role manajemen.
+
+### Solusi
+
+Ringkasan Kasir sekarang hanya memuat business date, jumlah transaksi, jumlah produk terjual, jumlah menu, serta statistik kuantitas per produk. Kartu UI Kasir disesuaikan agar tidak menampilkan nominal finansial.
+
+### Bukti verifikasi aktual
+
+- Regression test `Kasir hanya menerima ringkasan kuantitas tanpa data finansial`: PASS.
+- Contract test UI memastikan label pendapatan/metode pembayaran tidak ada: PASS.
+
+## ERR-042 - Tombol bersihkan seluruh outlet selalu gagal
+
+### Kondisi/gejala
+
+Tombol bahaya Owner mengirim body kosong, sedangkan server mewajibkan frasa konfirmasi dan PIN Owner aktif.
+
+### Root cause
+
+Form frontend belum mengikuti kontrak endpoint clear-all terbaru.
+
+### Solusi
+
+UI sekarang meminta frasa konfirmasi dan PIN Owner, memeriksa koneksi, mengirim `confirmation`, `currentPin`, dan `requestId`, lalu membersihkan field PIN setelah berhasil.
+
+### Bukti verifikasi aktual
+
+- Contract test payload clear-all Owner: PASS.
+
+## ERR-043 - String `"false"` tersimpan sebagai boolean `true`
+
+### Kondisi/gejala
+
+Input API seperti `{ "active": "false" }` dapat mengaktifkan produk atau karyawan karena coercion JavaScript.
+
+### Root cause
+
+Server memakai `Boolean(value)` dan hanya memeriksa keberadaan field, bukan tipe boolean asli.
+
+### Solusi
+
+Update produk, bulk update, dan status karyawan sekarang menerima `true`/`false` literal saja; tipe lain ditolak dengan validation error.
+
+### Bukti verifikasi aktual
+
+- Regression test strict boolean pada produk, bulk product, dan karyawan: PASS.
+
+## ERR-044 - Mutasi inventory menerima `shiftId` palsu
+
+### Kondisi/gejala
+
+Ledger inventory dapat merujuk ke ID shift yang tidak pernah ada.
+
+### Root cause
+
+`shiftId` dinormalisasi tetapi tidak diverifikasi terhadap shift outlet.
+
+### Solusi
+
+Jika `shiftId` dikirim, server mencari shift pada outlet yang sama dan menolak mutasi bila tidak ditemukan.
+
+### Bukti verifikasi aktual
+
+- Regression test `mutasi inventory menolak shiftId yang tidak ada`: PASS.
+
+## ERR-045 - Batas impor 1 MB tidak benar-benar diterapkan
+
+### Kondisi/gejala
+
+Endpoint bulk product menerima body lebih dari 1 MB walaupun UI/dokumentasi menyatakan batas 1 MB.
+
+### Root cause
+
+Parser JSON memakai batas default 35 MB dan menghitung panjang karakter, bukan ukuran byte aktual.
+
+### Solusi
+
+Parser memeriksa `Content-Length`, menghitung byte Buffer aktual, memutus request yang melewati batas, dan endpoint bulk memakai batas eksplisit 1.048.576 byte.
+
+### Bukti verifikasi aktual
+
+- Regression test body bulk di atas 1 MB menerima HTTP 413: PASS.
+
+## ERR-046 - Order waiting dapat langsung selesai dan lifecycle tidak masuk audit
+
+### Kondisi/gejala
+
+Order berstatus `waiting` dapat diselesaikan tanpa dipanggil. Aksi call, complete, dan cancel juga tidak tercatat pada audit log.
+
+### Root cause
+
+State transition `completeOrder` tidak membatasi status ke `ready`, dan route aksi order belum menulis audit event.
+
+### Solusi
+
+Urutan status diwajibkan `waiting -> ready -> completed`. Call menyimpan `calledAt`/`callCount`, complete menyimpan `completedAt`, dan call/complete/cancel menulis actor serta metadata ke audit log.
+
+### Bukti verifikasi aktual
+
+- Unit test `order waiting tidak boleh langsung diselesaikan`: PASS.
+- Regression test audit `order.call`, `order.complete`, dan `order.cancel`: PASS.
+
+## ERR-047 - Service Windows dapat berjalan tanpa guard production
+
+### Kondisi/gejala
+
+Scheduled Task menjalankan Node tanpa `NODE_ENV=production`, sehingga validasi credential production dapat terlewati.
+
+### Root cause
+
+Installer service hanya memberi argumen `src/server.js` dan bergantung pada environment parent.
+
+### Solusi
+
+Installer menambahkan argumen `--production`; startup server menganggap argumen tersebut sebagai mode production dan tetap fail closed pada credential tidak aman.
+
+### Bukti verifikasi aktual
+
+- Contract test installer dan production flag: PASS.
+
+## ERR-048 - Restore SQLite mengabaikan file WAL/SHM lama
+
+### Kondisi/gejala
+
+Restore mengganti file database utama tetapi meninggalkan sidecar `-wal`/`-shm`, sehingga state lama berisiko ikut terbaca atau merusak hasil restore.
+
+### Root cause
+
+Script hanya memindahkan dan mengembalikan file `.sqlite`.
+
+### Solusi
+
+Restore sekarang memvalidasi backup sementara, mengarsipkan database aktif beserta WAL/SHM, memvalidasi ulang hasil restore, dan memulihkan semua file lama jika proses gagal.
+
+### Bukti verifikasi aktual
+
+- Test restore dengan stale WAL/SHM memastikan sidecar diarsipkan dan tidak tertinggal: PASS.
+
+## ERR-049 - Detail error baris impor hilang dan TSV salah dideteksi
+
+### Kondisi/gejala
+
+API client membuang `rowErrors` dari respons bulk dan file TSV dapat salah dianggap CSV jika isi data mengandung koma.
+
+### Root cause
+
+Error wrapper hanya mempertahankan message/status, sedangkan deteksi delimiter memeriksa seluruh isi file.
+
+### Solusi
+
+API client sekarang meneruskan `rowErrors`. Deteksi delimiter hanya membaca header sehingga koma di nilai data tidak mengubah TSV menjadi CSV.
+
+### Bukti verifikasi aktual
+
+- Contract test `rowErrors` dan deteksi header TSV: PASS.
+
+## Verifikasi batch audit 29 Juli 2026
+
+- Focused regression test: PASS (`54/54`).
+- Full `npm test`: PASS (`125/125`).
+- `npm run build`: PASS (`dist/` berhasil dibuat).
+- Smoke test multi-outlet terisolasi: PASS (auth, isolasi outlet, antrean, display state, dan Owner summary).
+- Browser smoke data terisolasi: PASS (form clear-all meminta frasa + PIN, kartu Kasir hanya kuantitas/transaksi, dan console tanpa error).
+- `git diff --check`: PASS.

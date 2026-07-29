@@ -308,8 +308,8 @@
               <div class="form-field">
                 <label for="owner-media-fit">Tampilan di TV:</label>
                 <select id="owner-media-fit">
-                  <option value="cover">Isi layar / crop</option>
-                  <option value="contain">Tampilkan penuh</option>
+                  <option value="contain">Tampilkan penuh (tanpa terpotong)</option>
+                  <option value="cover">Isi panel (tepi dapat terpotong)</option>
                 </select>
               </div>
               <div class="button-group">
@@ -354,6 +354,10 @@
           <label class="danger-confirm-field">
             <span>Ketik HAPUS SEMUA untuk mengaktifkan tombol</span>
             <input id="global-danger-confirmation" type="text" autocomplete="off" placeholder="HAPUS SEMUA">
+          </label>
+          <label class="danger-confirm-field">
+            <span>Masukkan PIN Owner saat ini</span>
+            <input id="global-owner-pin" name="current-password" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" placeholder="PIN Owner">
           </label>
           <button id="clear-all-outlets-sales-btn" class="danger-btn owner-mutating" disabled>Hapus Riwayat Penjualan SEMUA Outlet</button>
         </section>

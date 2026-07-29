@@ -61,6 +61,10 @@ test('admin exposes an efficient cashier layout, protected live channel, filteri
   assert.match(script, /crypto\.randomUUID\?\.\(\)\s*\?\?/);
   assert.match(script, /showError\(error\.message\s*\|\|\s*'Pembayaran gagal/);
   assert.doesNotMatch(`${html}\n${script}`, /cart-tax|taxConfig|Pajak|PBJT|PPN/i);
+  assert.doesNotMatch(html, /cashier-daily-(?:revenue|cash|qris)/);
+  assert.match(html, /id=["']cashier-daily-quantity["']/);
+  assert.doesNotMatch(script, /summary\.(?:revenue|paymentTotals)/);
+  assert.match(script, /if\s*\(order\.status === 'ready'\)[\s\S]{0,220}actionButton\('Selesai'/);
   for (const id of [
     'admin-username-input', 'operations-panel', 'cashier-daily-summary', 'open-shift-form',
     'close-shift-form', 'operation-entry-form', 'inventory-entry-form', 'admin-media-playlist',
@@ -125,7 +129,13 @@ test('display keeps the 34 percent queue panel, voice opt-in, media fit, and sta
 });
 
 test('owner uses protected owner channels, clear financial labels, responsive tabs, and separated danger settings', async () => {
-  const [html, script, css, baseCss] = await Promise.all([read('owner.html'), read('owner.js'), read('owner.css'), read('base.css')]);
+  const [html, script, css, baseCss, apiClient] = await Promise.all([
+    read('owner.html'),
+    read('owner.js'),
+    read('owner.css'),
+    read('base.css'),
+    read('api-client.js'),
+  ]);
   for (const id of [
     'owner-login', 'owner-dashboard', 'tab-summary', 'tab-reports', 'tab-settings', 'tab-danger',
     'owner-revenue', 'owner-received', 'owner-cash', 'owner-qris', 'owner-sales-count', 'owner-active-count',
@@ -161,6 +171,11 @@ test('owner uses protected owner channels, clear financial labels, responsive ta
   assert.doesNotMatch(script, /\/api\/owner\/outlets\/\$\{outlet\.id\}\/assign/);
   assert.match(script, /async function handleExportExcel/);
   assert.match(script, /showError\(error\.message\)/);
+  assert.match(html, /id=["']global-owner-pin["'][^>]*type=["']password["']/);
+  assert.match(script, /confirmation:\s*'HAPUS SEMUA'/);
+  assert.match(script, /currentPin:\s*\$\('#global-owner-pin'\)\.value/);
+  assert.match(apiClient, /error\.rowErrors\s*=\s*payload\.rowErrors/);
+  assert.match(script, /content\.split\(\/\\r\?\\n\/,\s*1\)\[0\]/);
   assert.doesNotMatch(script, /sessionStorage/);
   assert.doesNotMatch(script, /innerHTML/);
   assert.doesNotMatch(`${html}\n${script}`, /tax-config|Pajak|PBJT|PPN/i);

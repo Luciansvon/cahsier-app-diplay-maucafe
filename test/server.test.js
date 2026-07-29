@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { createQueueServer } from '../src/server.js';
-import { completeOrder, createInitialState, createOrder } from '../src/queue.js';
+import { callOrder, completeOrder, createInitialState, createOrder } from '../src/queue.js';
 import { recordInventoryMovement } from '../src/operations.js';
 import { createPinHash } from '../src/security.js';
 import { importLegacyJson, SqliteDatabase } from '../src/sqlite-store.js';
@@ -492,11 +492,11 @@ test('supports scoped Partner and Employee accounts, shifts, and dynamic outlet 
     employeeCookie,
   );
   assert.equal(cashierState.response.status, 200);
-  assert.equal(cashierState.payload.dailySummary.revenue, 40_000);
-  assert.equal(cashierState.payload.dailySummary.paymentTotals.cash, 40_000);
+  assert.equal(cashierState.payload.dailySummary.totalQuantity, 2);
+  assert.equal(cashierState.payload.dailySummary.productCount, 1);
   assert.equal(cashierState.payload.dailySummary.products[0].quantity, 2);
-  assert.equal('totalCost' in cashierState.payload.dailySummary, false);
-  assert.equal('netProfit' in cashierState.payload.dailySummary, false);
+  assert.equal('revenue' in cashierState.payload.dailySummary, false);
+  assert.equal('paymentTotals' in cashierState.payload.dailySummary, false);
 
   const proposed = await jsonRequest(`${baseUrl}/api/partner/outlets`, 'POST', {
     name: 'MAUCAFE Jepara Kota',
@@ -986,7 +986,8 @@ test('all-outlet summary always reports the current Jakarta business date', asyn
       items: [{ productId: 'latte', quantity: 1 }],
       paymentMethod: 'cash',
     }, '2020-01-01T03:00:00.000Z');
-    const completed = completeOrder(oldOrder.state, oldOrder.order.id, '2020-01-01T03:01:00.000Z');
+    const called = callOrder(oldOrder.state, oldOrder.order.id, '2020-01-01T03:00:30.000Z');
+    const completed = completeOrder(called.state, oldOrder.order.id, '2020-01-01T03:01:00.000Z');
     const staleWaiting = createOrder(completed.state, {
       items: [{ productId: 'latte', quantity: 1 }],
       paymentMethod: 'cash',

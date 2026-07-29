@@ -6,6 +6,8 @@ const connection = document.querySelector('#display-connection');
 const outletNameEl = document.querySelector('#display-outlet-name');
 const promoVideo = document.querySelector('#promo-video');
 const promoImage = document.querySelector('#promo-image');
+const promoWrapper = document.querySelector('.promo-wrapper');
+const promoBackdrop = document.querySelector('#promo-backdrop');
 const preparingStatus = document.querySelector('#preparing-status');
 const preparingPage = document.querySelector('#preparing-page');
 const voiceButton = document.querySelector('#enable-voice');
@@ -81,16 +83,37 @@ function announce(activeCall) {
   localStorage.setItem(`queue-last-spoken-event-${outletId}`, String(lastSpokenEvent));
 }
 
+function setImageBackdrop(url = '') {
+  if (!promoBackdrop || !promoWrapper) return;
+  if (!url) {
+    promoBackdrop.style.backgroundImage = '';
+    promoWrapper.classList.remove('has-image-backdrop');
+    return;
+  }
+  promoBackdrop.style.backgroundImage = `url(${JSON.stringify(url)})`;
+  promoWrapper.classList.add('has-image-backdrop');
+}
+
+function resolvedMediaFit(promoMedia) {
+  const requestedFit = promoMedia?.fit === 'cover' ? 'cover' : 'contain';
+  if (promoMedia?.type === 'image' && promoMedia?.fitVersion !== 2) {
+    return 'contain';
+  }
+  return requestedFit;
+}
+
 function renderMedia(promoMedia, position = 0, total = 1, { forcePlayback = false } = {}) {
   if (!promoMedia?.url) return false;
   const url = promoMedia.url;
-  const fit = promoMedia.fit === 'contain' ? 'contain' : 'cover';
-  if (promoVideo) promoVideo.style.objectFit = fit;
-  if (promoImage) promoImage.style.objectFit = fit;
+  const fit = resolvedMediaFit(promoMedia);
 
   if (promoMedia.type === 'video') {
-    if (promoImage) promoImage.hidden = true;
+    setImageBackdrop('');
+    if (promoImage) {
+      promoImage.hidden = true;
+    }
     if (promoVideo) {
+      promoVideo.style.objectFit = fit;
       if (currentMediaUrl !== url) {
         currentMediaUrl = url;
         const source = promoVideo.querySelector('source') || promoVideo;
@@ -111,7 +134,9 @@ function renderMedia(promoMedia, position = 0, total = 1, { forcePlayback = fals
       promoVideo.pause();
       promoVideo.hidden = true;
     }
+    setImageBackdrop(url);
     if (promoImage) {
+      promoImage.style.objectFit = fit;
       if (currentMediaUrl !== url) {
         currentMediaUrl = url;
         promoImage.src = url;
@@ -120,6 +145,8 @@ function renderMedia(promoMedia, position = 0, total = 1, { forcePlayback = fals
     }
     return true;
   }
+
+  setImageBackdrop('');
   return false;
 }
 
@@ -140,6 +167,7 @@ function showPlaylistItem({ force = false, forcePlayback = false } = {}) {
     clearImageTimer();
     currentMediaId = '';
     currentMediaUrl = '';
+    setImageBackdrop('');
     if (promoVideo) {
       promoVideo.pause();
       promoVideo.hidden = true;
@@ -171,6 +199,10 @@ function advancePlaylist({ replayCurrent = false } = {}) {
 
 promoVideo?.addEventListener('ended', () => advancePlaylist({ replayCurrent: true }));
 promoVideo?.addEventListener('error', () => advancePlaylist());
+promoImage?.addEventListener('error', () => {
+  setImageBackdrop('');
+  advancePlaylist();
+});
 
 function renderPreparing(numbers, { reset = false } = {}) {
   const safeNumbers = Array.isArray(numbers) ? numbers : [];

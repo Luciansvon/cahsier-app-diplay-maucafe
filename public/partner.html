@@ -118,7 +118,13 @@
           <h2>Playlist TV</h2>
           <form id="partner-media-form">
             <label class="modal-field"><span>Video MP4 / foto</span><input id="partner-media-file" type="file" accept="video/mp4,image/jpeg,image/png,image/webp" required></label>
-            <label class="modal-field"><span>Tampilan</span><select id="partner-media-fit"><option value="cover">Isi layar / crop</option><option value="contain">Tampilkan penuh</option></select></label>
+            <label class="modal-field">
+              <span>Tampilan</span>
+              <select id="partner-media-fit">
+                <option value="contain">Tampilkan penuh (tanpa terpotong)</option>
+                <option value="cover">Isi panel (tepi dapat terpotong)</option>
+              </select>
+            </label>
             <label class="modal-field"><span>Durasi foto (detik)</span><input id="partner-image-duration" type="number" min="3" max="60" value="8"></label>
             <button class="primary" type="submit">Unggah ke Playlist</button>
           </form>

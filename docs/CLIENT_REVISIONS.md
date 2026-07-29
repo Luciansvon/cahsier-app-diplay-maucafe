@@ -15,7 +15,7 @@ File ini menjadi catatan utama revisi MAUCAFE. Semua permintaan baru masuk ke fi
 | ID | Tanggal | Revisi | Status | Catatan dan bukti |
 | --- | --- | --- | --- | --- |
 | REV-001 | 22 Juli 2026 | Sistem antrean Kasir dan Display TV dengan penyimpanan data serta reset nomor harian. | `DONE` | Flow order, antrean, panggil, selesai, batal, dan reset tercakup automated test. |
-| REV-002 | 22-23 Juli 2026 | Riwayat penjualan dan ringkasan penjualan harian Kasir/Owner. | `DONE` | Perhitungan penjualan dan histori diuji di test sales, queue, dan server. |
+| REV-002 | 22-23 Juli 2026 | Riwayat penjualan Owner dan ringkasan kuantitas harian Kasir. | `DONE` | Kasir hanya menerima jumlah produk/transaksi; nominal finansial dan metode pembayaran tetap terbatas untuk Owner/Mitra. |
 | REV-003 | 23 Juli 2026 | Sinkronisasi Display memakai SSE, polling cadangan, dan perlindungan data stale. | `DONE` | Smoke test multi-outlet lulus. Rincian bug ada di `ERR-003`. |
 | REV-004 | 23-24 Juli 2026 | Sistem multi-outlet, Dashboard Owner gabungan, dan pembatasan akses per outlet. | `DONE` | Isolasi outlet, sesi Kasir, dan ringkasan Owner tercakup automated test serta smoke test. |
 | REV-005 | 24 Juli 2026 | Penguatan keamanan PIN, session, data Display publik, upload media, dan aksi berbahaya Owner. | `DONE` | Credential disimpan sebagai hash dan public state tidak membawa HPP, laporan internal, atau hash credential. |
@@ -31,15 +31,17 @@ File ini menjadi catatan utama revisi MAUCAFE. Semua permintaan baru masuk ke fi
 | REV-015 | 27 Juli 2026 | Rapikan teks dan komponen Shift pada halaman Mitra dan Kasir agar pas di halaman. | `DONE` | Status dipecah menjadi tiga baris, wrap diperketat, tombol mobile utuh, dan QA browser tidak menemukan overflow horizontal. Rincian ada di `ERR-035`. |
 | REV-016 | 27 Juli 2026 | Video promo harus tetap berjalan ketika suara panggilan antrean diputar. | `DONE` | Panggilan tidak lagi pause/play video; hanya audio promo dimute sementara dan selalu dipulihkan. Playlist satu video juga berulang otomatis. Rincian ada di `ERR-030` dan `ERR-036`. |
 | REV-017 | 27 Juli 2026 | Display iklan tidak perlu fullscreen adaptif; pertahankan split antrean dan maksimalkan area iklan tanpa teks/dekorasi luar. | `DONE` | Display selalu split 34/66. Panel media full-bleed tanpa promo chrome, sedangkan active call dan `Sedang dibuat` tetap terlihat. Rincian ada di `ERR-038`. |
+| REV-018 | 29 Juli 2026 | Audit dan penguatan celah logika session, akses per role, order, inventory, impor, restore, dan service production. | `DONE` | Regression test ditambahkan untuk session SSE, batas akses Kasir/Mitra, state order, validasi input, audit log, restore SQLite, dan kontrak UI. Rincian ada di `ERR-039` sampai `ERR-049`. |
 
 ## Pemeriksaan terakhir
 
-Tanggal: 27 Juli 2026
+Tanggal: 29 Juli 2026
 
-* `npm test`: `93/93` lulus, termasuk smoke test multi-outlet.
+* `npm test`: `125/125` lulus.
 * `npm run build`: lulus.
-* Browser smoke Owner/Display lulus: agregat Doni/Dedi dan saldo cup tampil, drill-down tahan refresh SSE, split 34/66 tepat, rotasi waiting berjalan, dan video tidak pause saat panggilan.
-* Seluruh revisi aktif `REV-001` sampai `REV-017` berstatus `DONE`.
+* Smoke test multi-outlet dan browser UI terisolasi: lulus.
+* Bukti detail ada pada `docs/ERROR_SOLUTIONS.md`.
+* Seluruh revisi aktif `REV-001` sampai `REV-018` berstatus `DONE`.
 * Detail error teknis tetap disimpan di `docs/ERROR_SOLUTIONS.md`; file ini hanya melacak revisi dan status pengerjaan.
 
 ## Urutan revisi berikutnya

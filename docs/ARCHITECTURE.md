@@ -49,7 +49,7 @@ Karyawan
 ├── tepat satu outlet dari session
 ├── shift sendiri
 ├── order dan antrean aktif
-└── ringkasan harian tanpa HPP/profit
+└── ringkasan harian berbasis jumlah produk/transaksi tanpa nominal finansial
 
 Public Display
 └── produk publik, active call, nomor waiting, playlist, dan freshness
@@ -66,6 +66,7 @@ Authorization diputuskan di server. UI tersembunyi bukan security.
 - Cookie web: `HttpOnly`, `SameSite=Strict`, dan `Secure` saat HTTPS.
 - APK: bearer token lewat `/api/native/*`, disimpan hanya selama sesi.
 - Session dan rate limiter in-memory; satu deployment hanya satu proses.
+- Koneksi SSE Owner/Admin menyimpan referensi session dan divalidasi ulang sebelum broadcast/keepalive. Logout, rotasi PIN, revoke session, atau session kedaluwarsa langsung menutup stream.
 - Production fail closed jika security hilang/rusak atau credential demo masih aktif.
 
 ## Order, shift, dan finansial
@@ -109,9 +110,13 @@ Saat tanggal Jakarta berubah:
 
 Event ID suara monotonik mencegah TV menganggap panggilan baru sebagai event lama. Complete/cancel order yang sedang dipanggil juga membersihkan active call.
 
+Urutan status order wajib `waiting -> ready -> completed`. Aksi call, complete, dan cancel dicatat pada audit log beserta actor dan outlet.
+
 ## Master menu
 
 Owner mengelola satu katalog global. Create/update/foto produk menulis registry dan state semua outlet dalam satu transaksi SQLite, lalu memperbarui cache dan broadcast SSE. Outlet yang dibuat kemudian memakai master terbaru.
+
+Mitra hanya dapat menonaktifkan produk untuk outlet miliknya. Status efektif produk outlet adalah `master.active && !disabledByPartner`, sehingga produk yang dinonaktifkan Owner tidak dapat diaktifkan kembali dari akun Mitra.
 
 Public/Kasir menerima allowlist:
 
@@ -122,6 +127,8 @@ HPP dan credential tidak dikirim.
 ## Cup dan inventory
 
 Produk menyimpan `cupUsage` 0–10 dan order menyimpan snapshot-nya. Ledger inventory mencatat `received`, `used`, `damaged`, `lost`, `returned`, dan `adjustment`. Ringkasan membandingkan pemakaian manual dengan ekspektasi dari penjualan.
+
+Jika mutasi inventory membawa `shiftId`, server memastikan shift tersebut benar-benar ada pada outlet yang sama sebelum menulis ledger.
 
 ## Media dan display
 
@@ -140,9 +147,9 @@ Display selalu split tetap: panel antrean 34% dan panel media 66%. Panel antrean
 
 ## Backup, restore, dan LAN
 
-Backup memakai SQLite `VACUUM INTO`. Restore memvalidasi `integrity_check`, `app_state`, `registry`, dan `security`, lalu memindahkan database lama ke file recoverable sebelum mengganti.
+Backup memakai SQLite `VACUUM INTO`. Restore memvalidasi `integrity_check`, `app_state`, `registry`, dan `security`, lalu memindahkan database lama beserta sidecar `-wal`/`-shm` ke file recoverable sebelum mengganti dan memvalidasi ulang database hasil restore.
 
-Windows Scheduled Task menjalankan server saat startup sebagai `SYSTEM` tanpa credential plaintext.
+Windows Scheduled Task menjalankan server dengan argumen `--production` saat startup sebagai `SYSTEM` tanpa credential plaintext. Argumen ini mengaktifkan pemeriksaan credential production walaupun environment task tidak mewarisi `NODE_ENV`.
 
 Topologi yang disarankan:
 
